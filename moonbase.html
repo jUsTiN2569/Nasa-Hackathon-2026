@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moonbase Mission Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EEF0FF;--panel:#FFFFFF;--panel2:#E4E7FA;--text:#14183A;--muted:#4A5088;--line:#C9CDEE;
+  --power:#D98A00;--o2:#0E9F94;--food:#4C9A1F;--rad:#D12A68;--data:#2A7FD6;--sun:#FFB627;
+  --btn:#14183A;--btnText:#FFFFFF;--sky-day:#9CC8FF;--sky-night:#14183A;--ground:#B9B4AB;--ground2:#9A958C;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1331;--panel:#1B2050;--panel2:#262C66;--text:#F4F1FF;--muted:#AEB5E8;--line:#383F82;
+  --power:#FFB627;--o2:#2EC4B6;--food:#7BC950;--rad:#FF5C93;--data:#6CB8FF;
+  --btn:#FFB627;--btnText:#14183A;--sky-night:#0A0D26;--ground:#8B867E;--ground2:#6F6B64;color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0F1331;--panel:#1B2050;--panel2:#262C66;--text:#F4F1FF;--muted:#AEB5E8;--line:#383F82;
+  --power:#FFB627;--o2:#2EC4B6;--food:#7BC950;--rad:#FF5C93;--data:#6CB8FF;
+  --btn:#FFB627;--btnText:#14183A;--sky-night:#0A0D26;--ground:#8B867E;--ground2:#6F6B64;color-scheme:dark;}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:auto;margin:0}
+body{background:var(--bg);color:var(--text);font-family:'Atkinson Hyperlegible',ui-rounded,'Trebuchet MS',system-ui,sans-serif;font-size:17px;line-height:1.45}
+h1,h2,h3{font-family:'Fredoka',ui-rounded,'Trebuchet MS',sans-serif;font-weight:700;line-height:1.1;margin:0}
+h1{font-size:clamp(2rem,6vw,3.4rem);letter-spacing:-.01em}
+h2{font-size:1.5rem}h3{font-size:1.15rem}
+p{margin:.4em 0}
+small,.small{font-size:.88rem;color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.btn{background:var(--btn);color:var(--btnText);border:0;border-radius:14px;padding:.8em 1.3em;font-family:'Fredoka',sans-serif;font-weight:700;font-size:1.1rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--text);border:2px solid var(--line)}
+.btn.big{font-size:1.3rem;padding:.9em 1.6em}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:16px}
+.chip{background:var(--panel2);border:2px solid transparent;border-radius:12px;padding:.5em .9em;font-weight:700}
+.chip[aria-pressed="true"]{border-color:var(--sun);background:var(--panel)}
+.chip.sel{border-color:var(--sun)}
+
+/* setup */
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:center;padding:8px 0 18px}
+.hero p.lead{font-size:1.2rem;max-width:34ch}
+.hero svg{width:100%;height:auto;border-radius:22px;border:2px solid var(--line)}
+.names{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.names input,.codebox input{width:100%;font:inherit;padding:.6em .8em;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--text)}
+.sites{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px}
+.site{text-align:left;background:var(--panel);border:3px solid var(--line);border-radius:18px;padding:14px}
+.site[aria-pressed="true"]{border-color:var(--sun)}
+.site .ic{font-size:2rem}
+.tag{display:inline-block;border-radius:8px;padding:.1em .6em;font-size:.85rem;font-weight:700;background:var(--panel2)}
+section.block{margin-top:22px}
+
+/* design */
+.parts{display:grid;gap:10px;margin-top:10px}
+.part{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}
+.part .ic{font-size:1.9rem}
+.step{display:flex;align-items:center;gap:8px}
+.step button{width:2.4rem;height:2.4rem;border-radius:50%;border:2px solid var(--line);background:var(--panel2);font-weight:700;font-size:1.3rem;line-height:1}
+.step b{min-width:1.6em;text-align:center;font-size:1.2rem}
+.budget{height:16px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.budget i{display:block;height:100%;background:var(--sun)}
+.budget.over i{background:var(--rad)}
+
+/* game */
+.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.daybadge{font-family:'Fredoka',sans-serif;font-size:1.5rem;font-weight:700}
+.pill{border-radius:99px;padding:.25em .8em;font-weight:700;background:var(--panel2);font-size:.95rem}
+.game{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:16px;align-items:start}
+.scene{width:100%;height:auto;display:block;border-radius:16px}
+.meters{display:grid;gap:10px;margin-top:12px}
+.meter .ml{display:flex;justify-content:space-between;font-weight:700}
+.track{position:relative;height:16px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.track .fill{position:absolute;inset:0 auto 0 0;border-radius:99px;transition:width .5s}
+.track .tick{position:absolute;top:-2px;bottom:-2px;width:4px;background:var(--text);border-radius:2px;opacity:.85}
+.crew{display:grid;gap:12px}
+.astro h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.mini{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:.9rem;margin-top:4px}
+.mini .track{height:10px}
+.tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.task{text-align:left;background:var(--panel2);border:3px solid transparent;border-radius:12px;padding:8px 10px}
+.task[aria-pressed="true"]{border-color:var(--sun);background:var(--panel)}
+.task:disabled{opacity:.4;cursor:not-allowed}
+.task b{display:block}
+.task small{display:block;line-height:1.2}
+.forecast{font-size:.95rem}
+.log{margin:0;padding-left:1.1em;font-size:.95rem;max-height:210px;overflow:auto}
+.log li{margin:.15em 0}
+.overlay{position:fixed;inset:0;background:rgba(5,7,25,.72);display:grid;place-items:center;padding:16px;z-index:20;overflow:auto}
+.modal{max-width:560px;width:100%;background:var(--panel);border:3px solid var(--sun);border-radius:22px;padding:20px}
+.modal .big{font-size:2.6rem}
+.opt{display:block;width:100%;text-align:left;margin-top:10px;background:var(--panel2);border:3px solid var(--line);border-radius:14px;padding:12px 14px}
+.opt b{font-family:'Fredoka',sans-serif;font-size:1.1rem}
+.opt:hover{border-color:var(--sun)}
+.advice{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--panel2);border-left:6px solid var(--data)}
+.lesson{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--panel2);border-left:6px solid var(--food)}
+
+/* report */
+.stars{font-size:3rem;letter-spacing:.1em}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--panel2);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-family:'Fredoka',sans-serif;font-size:1.6rem}
+.chart{width:100%;height:auto}
+.why li{margin:.5em 0}
+table{border-collapse:collapse;width:100%}
+td,th{padding:.35em .5em;text-align:left;border-bottom:1px solid var(--line)}
+.codebox{display:flex;gap:8px;flex-wrap:wrap}
+.codebox input{flex:1;min-width:200px;font-family:ui-monospace,monospace;font-size:.85rem}
+a{color:var(--data)}
+.err{color:var(--rad);font-weight:700}
+@media (max-width:860px){.hero,.game{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@keyframes pulse{50%{transform:scale(1.04)}}
+.pulse{animation:pulse 1.4s ease-in-out 3}
+
+/* polish */
+body{background:var(--bg) var(--stars,none)}
+:root{--stars:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--stars:radial-gradient(1.2px 1.2px at 30px 40px,#ffffffaa,transparent),radial-gradient(1px 1px at 130px 90px,#ffffff77,transparent),radial-gradient(1.5px 1.5px at 210px 200px,#ffffffaa,transparent),radial-gradient(1px 1px at 80px 230px,#ffffff66,transparent);}}
+:root[data-theme="dark"]{--stars:radial-gradient(1.2px 1.2px at 30px 40px,#ffffffaa,transparent),radial-gradient(1px 1px at 130px 90px,#ffffff77,transparent),radial-gradient(1.5px 1.5px at 210px 200px,#ffffffaa,transparent),radial-gradient(1px 1px at 80px 230px,#ffffff66,transparent)}
+body{background-size:auto,260px 260px}
+.scenecv{width:100%;height:auto;aspect-ratio:5/3;display:block;border-radius:14px;touch-action:manipulation;background:#0a0c22}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.small-chip{font-size:.95rem;padding:.4em .8em}
+.small-chip:hover{border-color:var(--sun)}
+.sceneinfo{margin:10px 2px 0;min-height:3.2em;font-size:.98rem}
+.task{transition:transform .12s,border-color .12s}
+.task:hover:not(:disabled){transform:translateY(-2px)}
+.card{box-shadow:0 6px 0 -2px rgba(0,0,0,.12)}
+.site:hover{transform:translateY(-3px)}
+.site{transition:transform .15s}
+small.dn{color:var(--rad)}small.up{color:var(--food)}
+.btn:not(:disabled):hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn:not(:disabled):active{transform:translateY(1px)}
+
+/* interactions */
+.btn,.task,.chip,.opt,.site,.sndbtn{position:relative}
+.btn:not(:disabled):hover,.task:not(:disabled):hover,.chip:hover,.opt:hover,.sndbtn:hover{background-image:radial-gradient(circle 90px at var(--mx,50%) var(--my,50%),rgba(255,255,255,.30),transparent 70%)}
+.btn.ghost:not(:disabled):hover,.task:not(:disabled):hover,.chip:hover,.opt:hover{background-image:radial-gradient(circle 90px at var(--mx,50%) var(--my,50%),rgba(255,182,39,.28),transparent 70%)}
+.task:active:not(:disabled),.chip:active,.opt:active,.site:active,.step button:active{transform:scale(.96)}
+.site{transform:perspective(700px) rotateX(var(--ty,0deg)) rotateY(var(--tx,0deg))}
+.site:hover{transform:perspective(700px) rotateX(var(--ty,0deg)) rotateY(var(--tx,0deg)) translateY(-3px)}
+.step button:hover:not(:disabled){border-color:var(--sun);background:var(--panel)}
+.step button:disabled{opacity:.35;cursor:not-allowed}
+.task kbd{position:absolute;top:6px;right:8px;font:700 .8rem 'Fredoka',sans-serif;background:var(--panel);border:2px solid var(--line);border-radius:6px;padding:0 .4em;color:var(--muted)}
+.task[aria-pressed="true"]{animation:pop .25s ease-out}
+@keyframes pop{0%{transform:scale(.94)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
+.astro{cursor:default;transition:border-color .15s,transform .15s}
+.astro.active{border-color:var(--sun)}
+.astro:hover{transform:translateY(-1px)}
+.meter{padding:4px 6px;border-radius:12px;transition:background .15s}
+.meter:hover{background:var(--panel2)}
+.part{transition:transform .15s,border-color .15s}
+.part:hover{transform:translateX(3px);border-color:var(--sun)}
+#tip{position:fixed;left:0;top:0;max-width:260px;background:#0a0c28;color:#fff;border:2px solid var(--sun);border-radius:12px;padding:.5em .8em;font-size:.92rem;line-height:1.3;z-index:70;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
+#tip.on{opacity:1;transform:none}
+.sndbtn{position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:55;width:2.8rem;height:2.8rem;border-radius:50%;border:2px solid var(--line);background:var(--panel);font-size:1.3rem;line-height:1;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.sndbtn[aria-pressed="true"]{border-color:var(--sun)}
+.chip.small-chip:active{transform:scale(.94)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+/* ===== MOONBASE MISSION CONTROL — ENGINE (no DOM; testable in Node) ===== */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffle(arr,rng){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const MISSION_DAYS=30;
+
+/* Archived real flares (class values recalled from NASA/NOAA records — verify in DONKI before presenting). */
+const FLARE_ARCHIVE=[
+  {date:'2017-09-06',cls:'X9.3'},
+  {date:'2024-05-10',cls:'X3.9'},
+  {date:'2024-05-11',cls:'X5.8'},
+  {date:'2024-05-14',cls:'X8.7'},
+  {date:'2024-10-03',cls:'X9.0'}
+];
+
+const SITES={
+  pole:{id:'pole',name:'Moon: South Pole ridge',icon:'🌕',level:'Medium',
+    blurb:'Artemis is looking near here. The Sun shines most days, but shadows creep in.',
+    sun:d=>((d-1)%8)<6?1:0, sunF:1, baseLoad:8, perCrew:2, darkLoad:4, dose:1.4, flareF:1,
+    delay:'about 1.3 seconds each way', tx:24, unit:'day'},
+  equator:{id:'equator',name:'Moon: Equator',icon:'🌗',level:'Hard',
+    blurb:'Two weeks of sunshine, then two weeks of freezing darkness.',
+    sun:d=>(d<=14||d>=30)?1:0, sunF:1, baseLoad:8, perCrew:2, darkLoad:5, dose:1.4, flareF:1,
+    delay:'about 1.3 seconds each way', tx:24, unit:'day'},
+  mars:{id:'mars',name:'Mars: Jezero-style plain',icon:'🔴',level:'Hard',
+    blurb:'Thin air, dusty skies, and messages that take minutes to arrive.',
+    sun:d=>1, sunF:0.45, baseLoad:6, perCrew:1.5, darkLoad:0, dose:0.67, flareF:0.6,
+    delay:'3 to 22 minutes each way', tx:14, unit:'sol'}
+};
+const DIFFS={
+  easy:{name:'Explorer',use:0.8,evProb:0.22,flares:3,budget:150,goal:70,hit:0.6},
+  normal:{name:'Commander',use:1,evProb:0.32,flares:4,budget:150,goal:110,hit:0.7},
+  hard:{name:'Flight Director',use:1.15,evProb:0.42,flares:4,budget:120,goal:140,hit:0.8}
+};
+const MASS=14;
+const PARTS=[
+  {k:'p',icon:'☀️',name:'Solar panels',cost:1,max:8,def:4,why:'Each panel makes about 9 power a day in full Sun.'},
+  {k:'b',icon:'🔋',name:'Batteries',cost:1,max:5,def:2,why:'Save power for shadows and night. Each holds 30.'},
+  {k:'n',icon:'☢️',name:'Nuclear battery',cost:2,max:3,def:0,why:'Makes 7 power every day, even in the dark. Heavy! Real rovers use these.'},
+  {k:'k',icon:'🛡️',name:'Shield kit',cost:1,max:4,def:1,why:'Thicker walls block more radiation from day one.'},
+  {k:'g',icon:'🌱',name:'Garden beds',cost:1,max:3,def:1,why:'Each bed adds 2 food every time you tend the garden.'},
+  {k:'i',icon:'🔬',name:'Science tools',cost:1,max:3,def:1,why:'Better tools get more data from every experiment.'},
+  {k:'d',icon:'📡',name:'Radio dish',cost:1,max:3,def:1,why:'A bigger dish sends more data home in one go.'}
+];
+const defaultDesign=()=>Object.fromEntries(PARTS.map(p=>[p.k,p.def]));
+const designCost=d=>PARTS.reduce((t,p)=>t+p.cost*(d[p.k]||0),0);
+
+const TASKS={
+  o2:{icon:'💨',name:'Make oxygen',verb:'make oxygen',pw:s=>6,
+      txt:s=>`⚡−6 → 💨+10`},
+  farm:{icon:'🌱',name:'Tend garden',verb:'tend the garden',pw:s=>3,
+      txt:s=>`⚡−3 → 🥦+${7+2*s.design.g}`},
+  shield:{icon:'🛡️',name:'Pile on shielding',verb:'build shielding',pw:s=>3+s.shield,outside:true,
+      txt:s=>`⚡−${3+s.shield} → 🛡️+1 (outside, no shield)`},
+  clean:{icon:'🧹',name:'Brush panels',verb:'brush the panels',pw:s=>0,outside:true,
+      txt:s=>`free → panels back to 100% (outside)`},
+  lab:{icon:'🔬',name:'Run experiment',verb:'run an experiment',pw:s=>6,
+      txt:s=>`⚡−6 → 💾+${10+3*s.design.i}`},
+  eva:{icon:'🧑‍🚀',name:'Moonwalk',verb:'explore outside',pw:s=>3,outside:true,
+      txt:s=>`⚡−3 💨−8 → 💾+${20+4*s.design.i}, 3x radiation`},
+  tx:{icon:'📡',name:'Send data home',verb:'send data',pw:s=>4,
+      txt:s=>`⚡−4 → send ${SITES[s.site].tx+6*s.design.d} 💾 to Earth`},
+  rest:{icon:'😴',name:'Rest & check-up',verb:'rest',pw:s=>0,
+      txt:s=>`free → ❤️+15`}
+};
+const TASK_ORDER=['o2','farm','shield','clean','lab','eva','tx','rest'];
+
+function flareDose(cls){const L=cls[0],m=parseFloat(cls.slice(1))||1;return L==='X'?25+7*m:L==='M'?8+2*m:4}
+const shieldFactor=s=>Math.max(0.3,1-0.07*s.shield);
+
+/* ---------- events ---------- */
+const EVENTS=[
+ {id:'leak',sites:['pole','equator'],icon:'☄️',title:'A space rock hit the roof!',
+  text:'A tiny meteoroid punched a hole in the airlock wall. Air is hissing out.',
+  options:[
+   {label:'Patch it now',desc:'Uses 6 power for the repair robot',fx:s=>{s.power=Math.max(0,s.power-6);return 'The robot patched the hole fast. Hardly any air escaped.'}},
+   {label:'Seal the door and wait',desc:'You will lose about 12 oxygen',fx:s=>{s.o2=Math.max(0,s.o2-12);return 'Air kept leaking until the door was sealed.'}}],
+  best:()=>0,lesson:'The Moon has no air at all, so even small leaks matter. Real habitats have many sealed rooms.'},
+ {id:'dust',sites:['pole','equator','mars'],icon:'🌫️',title:'Dust on the solar panels',
+  text:'Sticky dust has settled over the panels. They can’t soak up as much sunlight.',
+  options:[
+   {label:'Brush them with the robot arm',desc:'Uses 3 power',fx:s=>{s.power=Math.max(0,s.power-3);return 'The robot arm brushed the panels clean.'}},
+   {label:'Leave it for now',desc:'Panels lose 25% of their power',fx:s=>{s.eff=Math.max(0.4,s.eff-0.25);return 'The panels are dustier. You get less power.'}}],
+  best:()=>0,lesson:'Dust is a real problem. It ended the Opportunity rover’s mission on Mars when a huge storm blocked the Sun.'},
+ {id:'storm',sites:['mars'],icon:'🌪️',title:'A Martian dust storm!',
+  text:'The sky turns orange-brown. For 3 sols your solar panels will make only a third of their power.',
+  options:[
+   {label:'Turn off the garden lights',desc:'Saves power, but the garden pauses for 3 sols',fx:s=>{s.mods.storm=3;s.mods.ghOff=3;return 'Dark skies and dark garden. Be careful with your food.'}},
+   {label:'Keep everything on',desc:'The battery has to carry the load',fx:s=>{s.mods.storm=3;return 'The battery is working hard through the storm.'}}],
+  best:s=>s.power>60?1:0,lesson:'Mars dust storms can cover the whole planet and last for weeks. Missions plan for them with extra batteries or nuclear power.'},
+ {id:'blight',sites:['pole','equator','mars'],icon:'🥀',title:'Sick plants in the garden',
+  text:'Some leaves are turning brown. A mold is spreading.',
+  options:[
+   {label:'Remove the sick plants',desc:'You lose 10 food',fx:s=>{s.food=Math.max(0,s.food-10);return 'The mold is gone, but so is some food.'}},
+   {label:'Treat with UV light',desc:'Uses 8 power, you lose 3 food',fx:s=>{s.power=Math.max(0,s.power-8);s.food=Math.max(0,s.food-3);return 'UV light saved most of the plants.'}}],
+  best:s=>s.power>45?1:0,lesson:'On the space station, astronauts really grow lettuce and chili peppers. Keeping plants healthy takes careful work.'},
+ {id:'rock',sites:['pole','equator','mars'],icon:'💎',title:'A rare rock! Quick, worth a look?',
+  text:'The rover camera spotted a shiny rock nearby. Scientists on Earth are very excited.',
+  options:[
+   {label:'Send someone outside to grab it',desc:'Costs 10 oxygen and some radiation. Gives 25 data!',fx:s=>{s.o2=Math.max(0,s.o2-10);s.data=Math.min(DATA_CAP,s.data+25);const a=s.crew.slice().sort((x,y)=>x.dose-y.dose)[0];a.dose+=SITES[s.site].dose*3;return `${a.name} brought back a great sample. +25 data!`}},
+   {label:'Mark it for later',desc:'Nothing changes today',fx:s=>'You marked the rock on the map. Maybe next time.'}],
+  best:s=>s.o2>45?0:1,lesson:'Every moonwalk trades air and safety for science. Mission planners decide when a discovery is worth the cost.'},
+ {id:'antenna',sites:['pole','equator','mars'],icon:'📻',title:'The antenna is stuck',
+  text:'The dish won’t turn toward Earth. No data can be sent until it’s fixed.',
+  options:[
+   {label:'Fix it right away',desc:'Uses 5 power',fx:s=>{s.power=Math.max(0,s.power-5);return 'The dish points at Earth again.'}},
+   {label:'Wait for it to unstick',desc:'No sending data today',fx:s=>{s.mods.txOff=1;return 'The dish should free itself by tomorrow.'}}],
+  best:()=>0,lesson:'If the antenna fails, all the science stays stuck on the base computers. Data only counts once it is sent home.'}
+];
+const DATA_CAP=120;
+
+/* ---------- game creation ---------- */
+let RNG=Math.random;
+function newGame(cfg){
+  const D=DIFFS[cfg.diff], names=cfg.names.slice(0,4);
+  if(names.length<2) names.push('Buddy');
+  RNG=mulberry32(cfg.seed);
+  const pool=(cfg.flares&&cfg.flares.length?cfg.flares:FLARE_ARCHIVE).slice();
+  const picked=shuffle(pool,RNG).slice(0,D.flares);
+  const baseDays=[5,11,18,24];
+  const flareDays={};
+  picked.forEach((f,i)=>{flareDays[clamp(baseDays[i]+Math.floor(RNG()*3)-1,2,MISSION_DAYS-1)]=f});
+  const d=cfg.design;
+  const s={
+    site:cfg.site,diff:cfg.diff,seed:cfg.seed,design:Object.assign({},d),flares:picked,
+    crew:names.map(n=>({name:n,health:100,dose:0,rested:false,outside:false})),
+    day:1,power:(60+30*d.b)*0.8,powerMax:60+30*d.b,o2:100,food:80,
+    data:0,sent:0,shield:d.k,eff:1,
+    mods:{storm:0,ghOff:0,txOff:0},sheltered:false,flareHit:false,
+    flareDays,today:null,replies:[],log:[],history:[],
+    stats:{fizzles:0,brownouts:0,o2Short:0,foodShort:0,storageFull:0,shelters:0,flareDoseTaken:0,flareDoseDodged:0,evas:0,tasks:{},events:0,askedEarth:0},
+    ended:null
+  };
+  startDay(s);
+  return s;
+}
+
+function startDay(s){
+  const site=SITES[s.site],D=DIFFS[s.diff];
+  s.sheltered=false;s.flareHit=false;
+  s.today={flare:null,event:null,sun:site.sun(s.day)};
+  if(s.flareDays[s.day]){
+    s.today.flare=s.flareDays[s.day];
+    s.flareHit=RNG()<D.hit;
+  }else if(s.day>=2&&RNG()<D.evProb){
+    const ok=EVENTS.filter(e=>e.sites.includes(s.site));
+    s.today.event=ok[Math.floor(RNG()*ok.length)];
+  }
+}
+
+function panelCount(s){return s.design.p+2*Math.max(0,s.crew.length-2)}
+function solarToday(s){
+  const site=SITES[s.site];
+  return panelCount(s)*9*s.eff*site.sunF*s.today.sun*(s.mods.storm>0?0.3:1);
+}
+function loadToday(s){
+  const site=SITES[s.site];
+  return site.baseLoad+site.perCrew*s.crew.length+(s.today.sun?0:site.darkLoad);
+}
+function nukeToday(s){return s.design.n*7}
+function taskAvailable(s,k){
+  if(s.sheltered&&TASKS[k].outside)return false;
+  if(k==='farm'&&s.mods.ghOff>0)return false;
+  if(k==='tx'&&s.mods.txOff>0)return false;
+  return true;
+}
+
+/* ---------- running one day ---------- */
+function playDay(s,picks,preview){
+  const site=SITES[s.site],D=DIFFS[s.diff],out=[],crew=s.crew,n=crew.length;
+  crew.forEach(a=>{a.rested=false;a.outside=false});
+  if(s.sheltered){s.power=Math.max(0,s.power-5);out.push('🏠 The storm shelter used 5 power for extra air and heat.');}
+  picks.forEach((k,i)=>{
+    const a=crew[i],T=TASKS[k];
+    s.stats.tasks[k]=(s.stats.tasks[k]||0)+1;
+    if(!taskAvailable(s,k)){out.push(`${a.name} couldn’t ${T.verb} today.`);s.stats.fizzles++;return}
+    const cost=T.pw(s);
+    if(s.power<cost){out.push(`${a.name} tried to ${T.verb}, but there wasn’t enough power.`);s.stats.fizzles++;return}
+    if(k==='eva'&&s.o2<8){out.push(`${a.name} couldn’t go outside: not enough oxygen to spare.`);s.stats.fizzles++;return}
+    s.power-=cost;
+    if(T.outside)a.outside=true;
+    switch(k){
+      case 'o2':s.o2=Math.min(100,s.o2+10);out.push(`${a.name} made 10 oxygen.`);break;
+      case 'farm':{const f=7+2*s.design.g;s.food=Math.min(100,s.food+f);out.push(`${a.name} grew ${f} food.`);break}
+      case 'shield':s.shield=Math.min(10,s.shield+1);out.push(`${a.name} added shielding. Level ${s.shield}.`);break;
+      case 'clean':s.eff=1;out.push(`${a.name} brushed the panels clean.`);break;
+      case 'lab':{const g=10+3*s.design.i;s.data+=g;out.push(`${a.name} collected ${g} data.`);break}
+      case 'eva':{const g=20+4*s.design.i;s.o2-=8;s.data+=g;s.stats.evas++;out.push(`${a.name} explored outside: ${g} data, used 8 oxygen.`);break}
+      case 'tx':{const r=site.tx+6*s.design.d,m=Math.min(s.data,r);s.data-=m;s.sent+=m;out.push(m>0?`${a.name} sent ${m} data to Earth.`:`${a.name} had no data to send.`);break}
+      case 'rest':a.rested=true;out.push(`${a.name} rested.`);break;
+    }
+  });
+  if(s.data>DATA_CAP){s.data=DATA_CAP;s.stats.storageFull++;out.push('💾 Storage was full. Some data was lost!')}
+
+  /* power */
+  const gen=solarToday(s)+nukeToday(s),load=loadToday(s);
+  s.power+=gen-load;
+  let brown=false;
+  if(s.power<0){s.power=0;brown=true;s.stats.brownouts++;out.push('⚠️ Brownout! The heaters shut off.')}
+  s.power=Math.min(s.power,s.powerMax);
+
+  /* air and food */
+  s.o2-=3*n*D.use;let o2Out=false;
+  if(s.o2<0){s.o2=0;o2Out=true;s.stats.o2Short++;out.push('⚠️ Out of oxygen!')}
+  s.food-=2*n*D.use;let foodOut=false;
+  if(s.food<0){s.food=0;foodOut=true;s.stats.foodShort++;out.push('⚠️ The food ran out!')}
+
+  /* radiation */
+  const base=site.dose,sf=shieldFactor(s);
+  let flareDose=0;
+  if(s.today.flare){
+    flareDose=flareDose_(s.today.flare.cls)*site.flareF;
+    if(s.flareHit)out.push(`☀️ The ${s.today.flare.cls} flare sent particles our way!`);
+    else out.push(`☀️ The ${s.today.flare.cls} flare missed us this time.`);
+  }
+  crew.forEach(a=>{
+    let d=a.outside?base*3:base*sf;
+    if(s.flareHit&&flareDose>0){
+      const exposed=a.outside?flareDose:flareDose*(s.sheltered?sf*0.4:sf);
+      d+=exposed;s.stats.flareDoseTaken+=exposed;s.stats.flareDoseDodged+=flareDose-exposed;
+    }
+    a.dose+=d;
+  });
+
+  /* health */
+  const budget=D.budget;
+  crew.forEach(a=>{
+    let dmg=0;
+    if(o2Out)dmg+=30;if(foodOut)dmg+=12;if(brown)dmg+=8;if(a.dose>budget)dmg+=12;
+    if(dmg>0)a.health-=dmg;else a.health+=a.rested?15:2;
+    a.health=clamp(a.health,-1,100);
+    if(a.dose>budget&&!a._warn){a._warn=true;out.push(`☢️ ${a.name} passed the radiation budget!`)}
+  });
+
+  /* timers and wear */
+  s.eff=Math.max(0.4,s.eff-0.03);
+  ['storm','ghOff','txOff'].forEach(k=>{if(s.mods[k]>0)s.mods[k]--});
+  s.replies=s.replies.filter(r=>{if(r.day<=s.day){out.push('📬 '+r.text);return false}return true});
+
+  const avgH=crew.reduce((t,a)=>t+Math.max(0,a.health),0)/n;
+  s.history.push({d:s.day,power:Math.round(s.power),o2:Math.round(s.o2),food:Math.round(s.food),health:Math.round(avgH),dose:Math.round(Math.max(...crew.map(a=>a.dose))),sent:s.sent});
+  s.log=out.concat(s.log).slice(0,40);
+
+  const hurt=crew.find(a=>a.health<=0);
+  if(hurt){s.ended={reason:'early',who:hurt.name}}
+  else if(s.day>=MISSION_DAYS){s.ended={reason:'complete'}}
+  else if(!preview){s.day++;startDay(s)}
+  return out;
+}
+function flareDose_(c){return flareDose(c)}
+
+/* ---------- scoring ---------- */
+function summarize(s){
+  const D=DIFFS[s.diff],n=s.crew.length;
+  const goal=D.goal*n;
+  const avgH=Math.round(s.crew.reduce((t,a)=>t+Math.max(0,a.health),0)/n);
+  const maxDose=Math.max(...s.crew.map(a=>a.dose));
+  const days=s.ended&&s.ended.reason==='complete'?MISSION_DAYS:s.day;
+  const star1=s.ended&&s.ended.reason==='complete';
+  const star2=star1&&s.sent>=goal;
+  const star3=star2&&avgH>=70&&maxDose<=D.budget;
+  const score=Math.round(s.sent*2+avgH+days*3+Math.max(0,D.budget-maxDose)*0.5);
+  return{goal,avgH,maxDose:Math.round(maxDose),days,stars:(star1?1:0)+(star2?1:0)+(star3?1:0),score,budget:D.budget};
+}
+
+/* ---------- Mission Control advice ---------- */
+function askEarth(s,ev){
+  const site=SITES[s.site];s.stats.askedEarth++;
+  s.power=Math.max(0,s.power-2);
+  const best=ev.best(s);
+  return{best,delayed:site.id==='mars'};
+}
+
+if(typeof module!=='undefined')module.exports={newGame,playDay,startDay,summarize,SITES,DIFFS,PARTS,TASKS,TASK_ORDER,defaultDesign,designCost,MASS,taskAvailable,EVENTS,FLARE_ARCHIVE,MISSION_DAYS,solarToday,panelCount,loadToday,nukeToday,flareDose,shieldFactor,DATA_CAP};
+
+</script>
+<script>
+/* ===== MOONBASE MISSION CONTROL — UI ===== */
+const app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let S={view:'setup',players:2,names:['','','',''],site:'pole',diff:'normal',design:defaultDesign(),seed:0,flares:null,source:'',loading:false,code:'',codeMsg:''};
+let G=null,picks=[],handled=0,modal=null,saved=false,lb=[];
+
+/* ---------- storage (per-viewer only; always guarded) ---------- */
+function loadLB(){try{return JSON.parse(localStorage.getItem('mmc_lb')||'[]')}catch(e){return[]}}
+function saveLB(list){try{localStorage.setItem('mmc_lb',JSON.stringify(list))}catch(e){}}
+
+/* ---------- mission codes (share + compare) ---------- */
+function makeCode(){
+  const o={s:S.site,d:S.diff,de:S.design,sd:S.seed,f:(G?G.flares:S.flares||[]).map(f=>[f.date,f.cls])};
+  return btoa(JSON.stringify(o));
+}
+function readCode(c){
+  const o=JSON.parse(atob(c.trim()));
+  if(!SITES[o.s]||!DIFFS[o.d]||typeof o.sd!=='number')throw new Error('bad');
+  const d=defaultDesign();PARTS.forEach(p=>{d[p.k]=Math.max(0,Math.min(p.max,o.de[p.k]|0))});
+  if(designCost(d)>MASS)throw new Error('over');
+  S.site=o.s;S.diff=o.d;S.design=d;S.seed=o.sd;
+  S.flares=(o.f||[]).map(x=>({date:String(x[0]).slice(0,10),cls:String(x[1]).slice(0,6)}));S.source='shared';
+}
+
+/* ---------- live NASA DONKI with graceful fallback ---------- */
+async function loadFlares(){
+  const end=new Date(),start=new Date(end.getTime()-120*864e5),f=d=>d.toISOString().slice(0,10);
+  const url=`https://api.nasa.gov/DONKI/FLR?startDate=${f(start)}&endDate=${f(end)}&api_key=DEMO_KEY`;
+  try{
+    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),3500);
+    const r=await fetch(url,{signal:ctl.signal});clearTimeout(t);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    const live=(Array.isArray(j)?j:[]).filter(x=>x.classType&&/^[MX]/.test(x.classType)).map(x=>({date:(x.beginTime||'').slice(0,10),cls:x.classType}));
+    if(live.length<2)throw new Error('too few');
+    return{flares:live.sort((a,b)=>flareDose(b.cls)-flareDose(a.cls)).slice(0,5),source:'live'};
+  }catch(e){
+    return{flares:FLARE_ARCHIVE,source:'archive'};
+  }
+}
+
+/* ===== SCENE: seeded generative outpost (vanilla canvas, no dependencies) ===== */
+const SCENE=(function(){
+const W=800,H=480,HZ=250,DX=400,DY=352;
+const DPR=Math.min(2,(window.devicePixelRatio||1));
+const REDUCE=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const cv=document.createElement('canvas');
+cv.width=W*DPR;cv.height=H*DPR;cv.className='scenecv';
+cv.setAttribute('role','img');
+cv.setAttribute('aria-label','Your outpost. Click parts of the base, or use the buttons below, to learn what they do.');
+const ctx=cv.getContext&&cv.getContext('2d');
+if(!ctx){return{mount(){},inspect(){}}}
+ctx.setTransform(DPR,0,0,DPR,0,0);
+
+/* ---- noise ---- */
+function makeNoise(r){const p=new Float32Array(256);for(let i=0;i<256;i++)p[i]=r();return x=>{const i=Math.floor(x),f=x-i,u=f*f*(3-2*f);return p[i&255]*(1-u)+p[(i+1)&255]*u}}
+function fbm(n,x,o){let a=.5,s=0,f=1;for(let i=0;i<(o||4);i++){s+=a*n(x*f);f*=2;a*=.5}return s}
+const lerp=(a,b,t)=>a+(b-a)*t;
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+
+/* ---- model: what the picture shows ---- */
+function pvPicks(){const p=picks.slice();if(st.pv&&st.pv.i<p.length)p[st.pv.i]=st.pv.k;return p}
+function M(){
+  const g=G&&(S.view==='game'||S.view==='report');
+  if(g){const t=G.today||{sun:1};
+    return{live:true,site:G.site,design:G.design,shield:G.shield,eff:G.eff,sun:!!t.sun,flare:t.flare||null,sheltered:G.sheltered,storm:G.mods.storm>0,ghOff:G.mods.ghOff>0,txOff:G.mods.txOff>0,pw:G.power/G.powerMax,o2:G.o2/100,food:G.food/100,day:G.day,n:G.crew.length,seed:G.seed,names:G.crew.map(a=>a.name),picks:S.view==='game'?pvPicks():null,done:S.view==='report'}}
+  return{live:false,site:S.site,design:S.design,shield:S.design.k,eff:1,sun:true,flare:null,sheltered:false,storm:false,ghOff:false,txOff:false,pw:.8,o2:1,food:.8,day:1,n:Math.max(2,S.players),seed:7,names:['Nova','Orion','Luna','Comet'],picks:null,done:false}
+}
+
+/* ---- cached terrain (regenerated per site + seed) ---- */
+let terrain=null,terrKey='';
+function buildTerrain(site,seed){
+  const key=site+':'+seed;if(key===terrKey)return;terrKey=key;
+  const c=document.createElement('canvas');c.width=W*DPR;c.height=H*DPR;
+  const t=c.getContext('2d');t.setTransform(DPR,0,0,DPR,0,0);
+  const mars=site==='mars',r=mulberry32(seed*7919+site.charCodeAt(0)*131),n=makeNoise(r);
+  const range=(col,base,amp,freq,off)=>{t.fillStyle=col;t.beginPath();t.moveTo(0,HZ+6);for(let x=0;x<=W;x+=4)t.lineTo(x,base-amp*fbm(n,x*freq+off,5));t.lineTo(W,HZ+6);t.closePath();t.fill()};
+  range(mars?'#a0604a':'#464a68',HZ-4,80,0.006,10);
+  range(mars?'#8e503a':'#62637a',HZ+2,42,0.012,60);
+  const gg=t.createLinearGradient(0,HZ,0,H);gg.addColorStop(0,mars?'#c9783f':'#a09e9a');gg.addColorStop(1,mars?'#7a391b':'#5a585b');
+  t.fillStyle=gg;t.fillRect(0,HZ,W,H-HZ);
+  for(let i=0;i<2200;i++){const d=Math.pow(r(),1.5),y=HZ+d*(H-HZ),x=r()*W,s=.5+d*1.8;t.fillStyle=r()<.5?'rgba(0,0,0,.13)':'rgba(255,255,255,.10)';t.fillRect(x,y,s,s*.6)}
+  for(let i=0;i<14;i++){
+    const y=HZ+24+r()*(H-HZ-40),d=(y-HZ)/(H-HZ),x=r()*W,rx=14+d*50*(.4+r()),ry=rx*.28;
+    if(Math.abs(x-420)<270&&y>325&&y<425)continue;
+    t.fillStyle='rgba(0,0,0,.2)';t.beginPath();t.ellipse(x,y,rx,ry,0,0,7);t.fill();
+    t.strokeStyle='rgba(255,255,255,.22)';t.lineWidth=2;t.beginPath();t.ellipse(x,y,rx,ry,0,3.4,6);t.stroke();
+  }
+  t.fillStyle='rgba(255,255,255,.07)';t.beginPath();t.ellipse(410,374,300,40,0,0,7);t.fill();
+  t.strokeStyle='rgba(0,0,0,.12)';t.setLineDash([8,8]);t.beginPath();t.ellipse(410,374,280,34,0,0,7);t.stroke();t.setLineDash([]);
+  for(let i=0;i<40;i++){
+    const y=HZ+14+r()*(H-HZ-22),d=(y-HZ)/(H-HZ),x=r()*W,s=3+d*13*r();
+    t.fillStyle=mars?'#6e3417':'#6c6a6e';t.beginPath();t.moveTo(x-s,y);t.lineTo(x-s*.4,y-s*.7);t.lineTo(x+s*.6,y-s*.6);t.lineTo(x+s,y);t.closePath();t.fill();
+    t.fillStyle='rgba(255,255,255,.18)';t.beginPath();t.moveTo(x-s*.4,y-s*.7);t.lineTo(x+s*.6,y-s*.6);t.lineTo(x+s*.2,y-s*.3);t.closePath();t.fill();
+  }
+  terrain=c;
+}
+
+/* ---- state ---- */
+const st={pv:null,focus:null,t:0,sx:400,sy:HZ+90,light:1,shield:0,eff:1,door:0,parts:[],A:[],hover:null,hs:[],inspected:null,inspT:0,mouse:null,seedStars:null,starSeed:-1,spark:0,txT:0,conf:null,lastInfo:'',storm:0,flareT:0,bt:{}};
+const infoId='sceneinfo';
+
+function sunTarget(m){
+  const d=m.day;let x,y,vis=m.sun;
+  if(m.site==='pole'){const ph=((d-1)%8)/5.5;x=60+Math.min(1,ph)*680;y=HZ-78-Math.sin(Math.min(1,ph)*Math.PI)*14}
+  else if(m.site==='equator'){const ph=d<=14?(d-1)/13:0;x=60+ph*680;y=HZ-84-Math.sin(ph*Math.PI)*140}
+  else{const ph=(d-1)/29;x=60+ph*680;y=HZ-84-Math.sin(ph*Math.PI)*110}
+  if(!vis)y=HZ+95;
+  return{x,y}
+}
+function stars(seed){
+  if(st.starSeed===seed)return st.seedStars;
+  const r=mulberry32(seed*13+5),a=[];for(let i=0;i<140;i++)a.push({x:r()*W,y:r()*(HZ-10),s:r()*1.6+.4,p:r()*6.28});
+  st.starSeed=seed;st.seedStars=a;return a;
+}
+
+/* ---- particles ---- */
+function P(o){if(st.parts.length<900)st.parts.push(Object.assign({life:1,max:1,vx:0,vy:0,g:0,r:2,c:'#fff',k:'dot'},o,{max:o.life||1}))}
+function spawnConfetti(){const cols=['#FFB627','#2EC4B6','#FF5C93','#6CB8FF','#7BC950'];for(let i=0;i<140;i++)P({k:'sq',x:Math.random()*W,y:-10-Math.random()*200,vx:(Math.random()-.5)*40,vy:60+Math.random()*90,g:0,r:3+Math.random()*3,c:cols[i%5],life:5+Math.random()*3})}
+
+/* ---- update ---- */
+function update(dt){
+  const m=M();st.t+=dt;const T=st.t;
+  const tgt=sunTarget(m),k=Math.min(1,dt*2.2);
+  st.sx=lerp(st.sx,tgt.x,k);st.sy=lerp(st.sy,tgt.y,k);
+  st.light=lerp(st.light,m.sun?1:0,Math.min(1,dt*3));
+  st.shield=lerp(st.shield,m.shield,Math.min(1,dt*2.5));
+  st.eff=lerp(st.eff,m.eff,Math.min(1,dt*3));
+  st.storm=lerp(st.storm,m.storm?1:0,Math.min(1,dt*1.5));
+  if(st.inspT>0)st.inspT-=dt;
+  /* astronauts */
+  const doorX=DX,doorY=DY-6;
+  while(st.A.length<m.n)st.A.push({x:doorX,y:doorY,mode:'in',ph:0,face:1});
+  st.A.length=m.n;
+  let anyOut=false;
+  st.A.forEach((a,i)=>{
+    const job=m.picks&&m.picks[i];let tx=doorX,ty=doorY,mode='in';
+    if(m.done){tx=300+i*66;ty=404;mode='wave'}
+    else if(job==='eva'){tx=600+i*34;ty=424+(i%2)*10;mode='eva'}
+    else if(job==='shield'){tx=262-i*14;ty=352+(i%2)*8;mode='dig'}
+    else if(job==='clean'){tx=96+i*56;ty=376;mode='brush'}
+    const dx=tx-a.x,dy=ty-a.y,d=Math.hypot(dx,dy);
+    if(REDUCE){a.x=tx;a.y=ty;a.mode=mode}
+    else if(d>2){const sp=75*dt;a.x+=dx/d*Math.min(sp,d);a.y+=dy/d*Math.min(sp,d);a.face=dx>=0?1:-1;a.mode='walk';a.ph+=dt}
+    else{a.mode=mode;a.ph+=dt;a.face=mode==='wave'?1:(tx<doorX?-1:1)}
+    a.out=Math.hypot(a.x-doorX,a.y-doorY)>8;if(a.out)anyOut=true;
+    a.job=job;
+  });
+  st.door=lerp(st.door,anyOut?1:0,Math.min(1,dt*5));
+  if(REDUCE)return;
+  /* particles by activity */
+  const rate=(p)=>Math.random()<p*dt;
+  st.A.forEach((a,i)=>{
+    const job=a.job;
+    if(!a.out&&job){
+      if(job==='o2'&&rate(1.4))P({k:'ring',x:DX-60+Math.random()*120,y:DY-ry()+8,vy:-26,vx:(Math.random()-.5)*10,r:3+Math.random()*3,c:'#2EC4B6',life:2});
+      if(job==='farm'&&rate(1.2))P({k:'leaf',x:565+Math.random()*50,y:DY-40,vy:-22,vx:(Math.random()-.5)*14,r:4,c:'#7BC950',life:2});
+      if(job==='lab'&&rate(1.2))P({k:'sq',x:DX-30+Math.random()*60,y:DY-ry()+4,vy:-28,vx:(Math.random()-.5)*10,r:3.5,c:'#6CB8FF',life:2});
+      if(job==='rest'&&rate(.6))P({k:'txt',t:'z',x:DX-40+i*20,y:DY-60,vy:-18,vx:6,r:15,c:'#FFD27A',life:2.4});
+    }
+    if(a.mode==='dig'&&rate(9))P({k:'dot',x:a.x+8*a.face,y:a.y-18,vx:a.face*-40-20,vy:-70-Math.random()*30,g:210,r:2.2,c:'#8d8a86',life:.9});
+    if(a.mode==='brush'&&rate(8))P({k:'dust',x:a.x+14*a.face,y:a.y-10,vx:a.face*20,vy:-14,r:4,c:'#d8c8a8',life:1.1});
+    if(a.mode==='eva'&&rate(3))P({k:'dot',x:a.x+10*a.face,y:a.y-6,vx:(Math.random()-.5)*30,vy:-45,g:120,r:2,c:'#FFD27A',life:.8});
+  });
+  /* data packets: speed shows the real delay (fast for Moon, slow for Mars) */
+  const sendNow=m.picks&&m.picks.includes('tx')&&!m.txOff;
+  if(sendNow&&(st.txT-=dt)<=0){
+    st.txT=.55;const e=earthPos(m),dx=e.x-655,dy=e.y-(DY-52),d=Math.hypot(dx,dy),sp=m.site==='mars'?55:210;
+    P({k:'pkt',x:655,y:DY-52,vx:dx/d*sp,vy:dy/d*sp,r:3.5,c:'#6CB8FF',life:d/sp});
+  }
+  /* solar sparks */
+  if(m.sun&&!m.storm&&(st.spark-=dt)<=0){st.spark=.45;const c=Math.min(14,m.live?panelCount(G):m.design.p);if(c<1)return;const i=Math.floor(Math.random()*c);const p=panelXY(i);P({k:'txt',t:'+',x:p.x+14,y:p.y-4,vy:-26,r:15,c:'#FFB627',life:1.3})}
+  /* flare particle stream */
+  if(m.flare){
+    st.flareT+=dt;
+    if(rate(70)){
+      const ang=Math.atan2(DY-70-st.sy,DX-st.sx)+(Math.random()-.5)*.35,sp=150+Math.random()*90;
+      P({k:'flr',x:st.sx,y:st.sy,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,r:2.4,c:Math.random()<.5?'#FF5C93':'#FFB627',life:4});
+    }
+  }
+  /* storm dust (Mars storm) + Mars haze */
+  const want=(st.storm*160+(m.site==='mars'?14:0))|0;
+  let have=0;for(const p of st.parts)if(p.k==='wind')have++;
+  for(let i=have;i<want&&i<have+6;i++)P({k:'wind',x:W+10,y:HZ-40+Math.random()*(H-HZ+40),vx:-(90+Math.random()*140)*(0.4+st.storm),vy:(Math.random()-.5)*20,r:1.5+Math.random()*2.5,c:'#c99a6a',life:8+Math.random()*4});
+  /* integrate */
+  const dom=domeRect();
+  for(const p of st.parts){
+    p.life-=dt;p.vy+=p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.k==='flr'){
+      const inDome=((p.x-DX)/(105+st.shield*3))**2+((p.y-DY)/(80+st.shield*3))**2<1;
+      if(inDome&&!p.hit){
+        p.hit=1;const pass=shieldPass(m);
+        if(Math.random()>pass){p.life=.001;for(let j=0;j<3;j++)P({k:'dot',x:p.x,y:p.y,vx:(Math.random()-.5)*90,vy:(Math.random()-.5)*90,r:1.6,c:'#fff',life:.35})}
+        else{p.vx*=.35;p.vy*=.35;p.c='#FF5C93'}
+      }
+      if(p.y>H||p.x<-10||p.x>W+10)p.life=0;
+    }
+    if(p.k==='wind'&&p.x<-10){p.x=W+10;p.life=Math.max(p.life,3)}
+  }
+  st.parts=st.parts.filter(p=>p.life>0&&p.y<H+30);
+  if(m.done&&!st.conf){st.conf=1;if(G&&summarize(G).stars>0)spawnConfetti()}
+  if(!m.done)st.conf=null;
+}
+function shieldPass(m){const sf=Math.max(.3,1-.07*(m.shield||0));return m.sheltered?sf*.4:sf}
+function ry(){return 80}
+function domeRect(){return{x:DX-105,y:DY-80,w:210,h:84}}
+function earthPos(m){return m.site==='mars'?{x:690,y:88}:{x:625,y:98}}
+function panelXY(i){const col=i%7,row=Math.floor(i/7);return{x:44+col*40+row*16,y:396+row*28}}
+
+/* ---- draw helpers ---- */
+function astro(x,y,col,a,m){
+  const sc=1.25,walk=a.mode==='walk',ph=a.ph*9;
+  ctx.save();ctx.translate(x,y);ctx.scale(a.face*sc,sc);
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(0,0,10,3,0,0,7);ctx.fill();
+  const bob=walk?Math.abs(Math.sin(ph))*1.6:0,leg=walk?Math.sin(ph)*4:0;
+  ctx.translate(0,-bob);
+  ctx.fillStyle='#d9deee';rr(-5+leg*.4,-13,5,13,2);ctx.fill();rr(1-leg*.4,-13,5,13,2);ctx.fill();
+  ctx.fillStyle='#8a93b8';ctx.fillRect(-6+leg*.4,-3,7,3);ctx.fillRect(0-leg*.4,-3,7,3);
+  ctx.fillStyle='#aab2d2';rr(-12,-30,7,17,3);ctx.fill();
+  ctx.fillStyle='#f2f4fb';rr(-7,-31,15,19,5);ctx.fill();
+  ctx.fillStyle=col;ctx.fillRect(-4,-24,9,3);
+  /* arm */
+  let ang=.4+(walk?Math.sin(ph)*.5:0);
+  if(a.mode==='dig')ang=.9+Math.sin(a.ph*7)*.7;
+  if(a.mode==='brush')ang=1.1+Math.sin(a.ph*9)*.6;
+  if(a.mode==='wave')ang=-2.4+Math.sin(a.ph*8)*.5;
+  if(a.mode==='eva')ang=1.2+Math.sin(a.ph*5)*.4;
+  ctx.save();ctx.translate(2,-27);ctx.rotate(ang);ctx.fillStyle='#e7eaf6';rr(-2.5,0,5,13,2.5);ctx.fill();
+  if(a.mode==='dig'){ctx.fillStyle='#777';ctx.fillRect(-1,12,2,9);ctx.fillStyle='#999';ctx.fillRect(-5,20,10,4)}
+  if(a.mode==='brush'){ctx.fillStyle='#b9894f';ctx.fillRect(-1,12,2,8);ctx.fillStyle='#ffd27a';ctx.fillRect(-6,19,12,3)}
+  ctx.restore();
+  ctx.fillStyle='#f7f8ff';ctx.beginPath();ctx.arc(0,-38,9,0,7);ctx.fill();
+  const vg=ctx.createLinearGradient(-2,-44,6,-32);vg.addColorStop(0,'#ffd8a0');vg.addColorStop(.5,'#c9852e');vg.addColorStop(1,'#5a3b12');
+  ctx.fillStyle=vg;ctx.beginPath();ctx.ellipse(3,-38,6,5.2,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.ellipse(5,-40,2,1.4,-.5,0,7);ctx.fill();
+  ctx.restore();
+}
+function glow(x,y,r,col,al){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,col.replace('A',al));g.addColorStop(1,col.replace('A',0));ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2)}
+function hs(k,label,shape){st.hs.push(Object.assign({k,label},shape))}
+
+/* ---- draw ---- */
+function draw(){
+  const m=M(),mars=m.site==='mars',T=st.t,L=st.light;
+  st.hs=[];
+  buildTerrain(m.site,m.seed);
+  /* sky */
+  let g=ctx.createLinearGradient(0,0,0,HZ);
+  if(mars){
+    const hx=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16)),mx=(p,q,t)=>p.map((v,i)=>lerp(v,q[i],t));
+    const day=['#7d5a63','#c88c78','#e8b48a'].map(hx),night=['#120c26','#2a1a3a','#4a2c3e'].map(hx),storm=['#8d6a4c','#a37a52','#b58a5c'].map(hx);
+    [0,.55,1].forEach((pos,i)=>{const c=mx(mx(night[i],day[i],L),storm[i],st.storm*.85);g.addColorStop(pos,'rgb('+c.map(Math.round).join(',')+')')});
+  }else{g.addColorStop(0,'#04050f');g.addColorStop(1,L>.5?'#12163a':'#0a0c22')}
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,HZ+4);
+  /* stars: always visible over the Moon (no air!), only at night on Mars */
+  const sa=mars?(1-L)*(1-st.storm):1;
+  if(sa>.02)for(const s of stars(m.seed)){const tw=REDUCE?1:.65+.35*Math.sin(T*1.7+s.p);ctx.globalAlpha=sa*tw*.9;ctx.fillStyle='#fff';ctx.fillRect(s.x,s.y,s.s,s.s)}
+  ctx.globalAlpha=1;
+  /* Earth */
+  const e=earthPos(m);
+  if(!mars){
+    glow(e.x,e.y,50,'rgba(110,170,255,A)',.35);
+    const eg=ctx.createRadialGradient(e.x-8,e.y-8,3,e.x,e.y,26);eg.addColorStop(0,'#8fd0ff');eg.addColorStop(1,'#1d4fa8');
+    ctx.fillStyle=eg;ctx.beginPath();ctx.arc(e.x,e.y,26,0,7);ctx.fill();
+    ctx.save();ctx.beginPath();ctx.arc(e.x,e.y,26,0,7);ctx.clip();ctx.fillStyle='rgba(70,160,90,.9)';
+    const er=mulberry32(m.seed+3);for(let i=0;i<5;i++){ctx.beginPath();ctx.ellipse(e.x-18+er()*36,e.y-16+er()*32,5+er()*9,3+er()*6,er()*3,0,7);ctx.fill()}
+    ctx.fillStyle='rgba(255,255,255,.55)';for(let i=0;i<4;i++){ctx.beginPath();ctx.ellipse(e.x-18+er()*36,e.y-16+er()*32,7+er()*7,2+er()*2,er()*3,0,7);ctx.fill()}
+    ctx.restore();
+  }else{
+    ctx.fillStyle='#bfe0ff';ctx.globalAlpha=.4+.6*(1-L);ctx.beginPath();ctx.arc(e.x,e.y,2.6,0,7);ctx.fill();ctx.globalAlpha=1;
+  }
+  hs('earth','Earth',{t:'c',x:e.x,y:e.y,r:mars?14:30});
+  /* sun */
+  const sunR=mars?15:21;
+  if(st.sy<HZ+20){
+    glow(st.sx,st.sy,mars?110:150,'rgba(255,200,90,A)',.5*L+.15);
+    if(m.flare){const pu=.6+.4*Math.sin(T*6);glow(st.sx,st.sy,130,'rgba(255,70,140,A)',.55*pu)}
+    ctx.fillStyle='#fff3c4';ctx.beginPath();ctx.arc(st.sx,st.sy,sunR,0,7);ctx.fill();
+    ctx.fillStyle='#ffd25a';ctx.globalAlpha=.7;ctx.beginPath();ctx.arc(st.sx,st.sy,sunR*.72,0,7);ctx.fill();ctx.globalAlpha=1;
+    hs('sun','The Sun',{t:'c',x:st.sx,y:st.sy,r:sunR+10});
+  }
+  /* terrain */
+  ctx.drawImage(terrain,0,0,W,H);
+  if(mars){const hz=ctx.createLinearGradient(0,HZ-30,0,HZ+14);hz.addColorStop(0,'rgba(232,180,138,0)');hz.addColorStop(1,'rgba(232,180,138,.45)');ctx.fillStyle=hz;ctx.fillRect(0,HZ-30,W,44)}
+  /* night shading */
+  if(L<1){ctx.fillStyle='rgba(6,8,30,'+((1-L)*.55).toFixed(2)+')';ctx.fillRect(0,HZ-90,W,H-HZ+90)}
+  /* shadows */
+  const sunUp=st.sy<HZ+5,elev=Math.max(.06,Math.min(1,(HZ-st.sy)/160)),dir=DX>st.sx?1:-1,len=50+(1-elev)*210;
+  if(sunUp&&L>.1){
+    ctx.fillStyle='rgba(0,0,0,'+(.34*L).toFixed(2)+')';
+    const sh=(cx,cy,rx,ry2,l)=>{ctx.beginPath();ctx.ellipse(cx+dir*l*.5,cy,rx+l*.5,ry2,0,0,7);ctx.fill()};
+    sh(DX,DY+6,110,16,len*.9);sh(585,DY+4,58,10,len*.5);sh(655,DY+4,10,5,len*.7);
+    const c=Math.min(14,m.live?panelCount(G):m.design.p);for(let i=0;i<c;i++){const p=panelXY(i);sh(p.x+16,p.y+19,15,4,len*.12)}
+  }
+  /* back berm (shielding): grows as shield level rises */
+  drawBerm(m);
+  /* greenhouse, tanks, dish, dome */
+  drawGreenhouse(m);drawTanks(m);drawDish(m);drawDome(m);
+  /* foreground: batteries, nuclear, panels, rocks of interest */
+  drawBatteries(m);drawNuke(m);drawPanels(m);drawSampleRock(m);
+  /* astronauts */
+  const order=st.A.map((a,i)=>i).sort((i,j)=>st.A[i].y-st.A[j].y);
+  const cols=['#FF8A3D','#2EC4B6','#FF5C93','#6CB8FF'];
+  for(const i of order){const a=st.A[i];if(a.out){astro(a.x,a.y,cols[i],a,m);hs('crew'+i,m.names[i],{t:'c',x:a.x,y:a.y-24,r:20})}}
+  /* particles */
+  for(const p of st.parts){
+    const al=Math.max(0,Math.min(1,p.life/p.max*2));ctx.globalAlpha=Math.min(1,al);
+    if(p.k==='ring'){ctx.strokeStyle=p.c;ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.stroke()}
+    else if(p.k==='sq'){ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.r,p.r*1.4)}
+    else if(p.k==='leaf'){ctx.fillStyle=p.c;ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.55,.6,0,7);ctx.fill()}
+    else if(p.k==='txt'){ctx.fillStyle=p.c;ctx.font='700 '+p.r+'px Fredoka,sans-serif';ctx.fillText(p.t,p.x,p.y)}
+    else if(p.k==='pkt'){ctx.fillStyle=p.c;ctx.shadowColor=p.c;ctx.shadowBlur=8;ctx.fillRect(p.x-p.r,p.y-p.r,p.r*2,p.r*2);ctx.shadowBlur=0}
+    else if(p.k==='flr'){ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();ctx.globalAlpha*=.35;ctx.beginPath();ctx.arc(p.x-p.vx*.04,p.y-p.vy*.04,p.r*1.6,0,7);ctx.fill()}
+    else if(p.k==='wind'){ctx.globalAlpha=(.15+.35*st.storm);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}
+    else if(p.k==='dust'){ctx.fillStyle=p.c;ctx.globalAlpha=al*.55;ctx.beginPath();ctx.arc(p.x,p.y,p.r*(2-al),0,7);ctx.fill()}
+    else{ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}
+  }
+  ctx.globalAlpha=1;
+  if(st.storm>.02){ctx.fillStyle='rgba(160,110,60,'+(st.storm*.38).toFixed(2)+')';ctx.fillRect(0,0,W,H)}
+  /* banners */
+  if(m.flare){
+    const t=`☀ ${m.flare.cls} flare alert${m.sheltered?'  ·  crew sheltering':''}`;
+    ctx.font='700 16px Fredoka,sans-serif';const w=ctx.measureText(t).width+24;
+    ctx.fillStyle='rgba(209,42,104,.92)';rr(12,12,w,30,15);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(t,24,33);
+  }
+  if(m.storm){ctx.font='700 16px Fredoka,sans-serif';const t='Dust storm';const w=ctx.measureText(t).width+24;ctx.fillStyle='rgba(120,70,30,.92)';rr(12,m.flare?50:12,w,30,15);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(t,24,(m.flare?50:12)+21)}
+  /* hover + inspected outline */
+  const hv=st.hover,ins=st.inspT>0?st.inspected:null;
+  let fk=st.focus;if(fk&&!st.hs.some(q=>q.k===fk))fk=fk.startsWith('crew')?'air':null;
+  for(const h of st.hs){
+    if(h.k!==hv&&h.k!==ins&&h.k!==fk)continue;
+    ctx.save();ctx.strokeStyle=(h.k===ins||h.k===fk)?'#FFB627':'#ffffff';ctx.lineWidth=3;ctx.setLineDash([7,5]);ctx.lineDashOffset=-T*14;
+    if(h.t==='c'){ctx.beginPath();ctx.arc(h.x,h.y,h.r,0,7);ctx.stroke()}else{rr(h.x,h.y,h.w,h.h,10);ctx.stroke()}
+    ctx.restore();
+  }
+  if(hv&&st.mouse){const h=st.hs.find(q=>q.k===hv);if(h){ctx.font='700 15px Fredoka,sans-serif';const w=ctx.measureText(h.label).width+18;let x=Math.min(W-w-6,st.mouse.x+12),y=Math.max(24,st.mouse.y-14);ctx.fillStyle='rgba(10,12,40,.92)';rr(x,y-18,w,26,8);ctx.fill();ctx.fillStyle='#fff';ctx.fillText(h.label,x+9,y)}}
+  cv.style.cursor=hv?'pointer':'default';
+}
+function sunDirX(){return Math.max(-1,Math.min(1,(st.sx-DX)/400))}
+
+function drawBerm(m){
+  const lvl=Math.max(0,st.shield),r=mulberry32(m.seed+99),n=makeNoise(r);
+  const reg=m.site==='mars'?['#a9562d','#8d4423','#c26a3a']:['#8a8784','#6f6c6a','#a7a4a0'];
+  const full=Math.ceil(lvl);
+  for(let k=full-1;k>=0;k--){
+    const f=k+1>lvl?lvl-k:1,rx=138+k*8,h=(52+k*9)*f;
+    ctx.fillStyle=reg[k%3];ctx.beginPath();ctx.moveTo(DX-rx,DY+6);
+    for(let x=-rx;x<=rx;x+=6){const u=x/rx,base=Math.sqrt(Math.max(0,1-u*u))*h,bump=(n(x*.08+k*5)-.5)*8*f;ctx.lineTo(DX+x,DY+6-Math.max(0,base+bump))}
+    ctx.lineTo(DX+rx,DY+6);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.14)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  if(lvl>.05){const hh=lvl;hs('shield','Shielding wall',{t:'r',x:DX-130,y:DY-30-lvl*5,w:260,h:40+lvl*5})}
+}
+function drawDome(m){
+  const cx=DX,by=DY,rx=105,ry=80,L=st.light,sd=sunDirX();
+  ctx.fillStyle='#5b6389';rr(cx-rx-8,by-3,2*rx+16,10,4);ctx.fill();
+  const g=ctx.createRadialGradient(cx+sd*45,by-ry*.7,8,cx,by-ry*.35,rx*1.15);g.addColorStop(0,'#ffffff');g.addColorStop(.55,'#dfe5f7');g.addColorStop(1,'#98a3c9');
+  ctx.beginPath();ctx.moveTo(cx-rx,by);ctx.ellipse(cx,by,rx,ry,0,Math.PI,2*Math.PI);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+  if(L<1){ctx.fillStyle='rgba(8,12,50,'+((1-L)*.5).toFixed(2)+')';ctx.fill()}
+  ctx.strokeStyle='rgba(40,50,100,.3)';ctx.lineWidth=1.5;
+  for(const f of [.3,.62,.92]){ctx.beginPath();ctx.ellipse(cx,by,rx*f,ry,0,Math.PI,2*Math.PI);ctx.stroke()}
+  ctx.beginPath();ctx.ellipse(cx,by,rx,ry*.55,0,Math.PI,2*Math.PI);ctx.stroke();
+  ctx.strokeStyle='#2b3262';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(cx,by,rx,ry,0,Math.PI,2*Math.PI);ctx.stroke();
+  /* windows with crew silhouettes */
+  const n=m.n;
+  for(let i=0;i<n;i++){
+    const wx=n===1?cx:cx-72+i*(144/(n-1)),wy=by-38-Math.pow((wx-cx)/rx,2)*-6;
+    const inside=!st.A[i]||!st.A[i].out;
+    glow(wx,wy,34,'rgba(255,205,110,A)',.22+.3*(1-L));
+    ctx.fillStyle='#ffd36a';ctx.beginPath();ctx.ellipse(wx,wy,12,9,0,0,7);ctx.fill();
+    if(inside){ctx.fillStyle='rgba(60,40,10,.8)';ctx.beginPath();ctx.arc(wx,wy-2,3.6,0,7);ctx.fill();ctx.beginPath();ctx.ellipse(wx,wy+7,6,4,0,Math.PI,2*Math.PI);ctx.fill()}
+    ctx.strokeStyle='#2b3262';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(wx,wy,12,9,0,0,7);ctx.stroke();
+  }
+  /* airlock */
+  ctx.fillStyle='#c7cfea';rr(cx-19,by-34,38,36,6);ctx.fill();ctx.strokeStyle='#2b3262';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.save();rr(cx-13,by-30,26,30,4);ctx.clip();ctx.fillStyle='#161a3c';ctx.fillRect(cx-13,by-30,26,30);
+  ctx.fillStyle='#8b95c4';ctx.fillRect(cx-13,by-30-0,26,30*(1-st.door));ctx.fillStyle='#6d78ad';for(let y=0;y<30*(1-st.door);y+=6)ctx.fillRect(cx-13,by-30+y,26,1.5);
+  ctx.restore();
+  /* mast */
+  ctx.strokeStyle='#2b3262';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,by-ry);ctx.lineTo(cx,by-ry-24);ctx.stroke();
+  const bl=REDUCE||Math.sin(st.t*4)>0;ctx.fillStyle=bl?'#FF5C93':'#7a2a48';ctx.beginPath();ctx.arc(cx,by-ry-26,3.5,0,7);ctx.fill();
+  hs('air','Home dome: life support',{t:'r',x:cx-rx,y:by-ry,w:2*rx,h:ry+6});
+}
+function drawTanks(m){
+  const x0=292,by=DY-2;
+  for(let i=0;i<2;i++){
+    const x=x0-i*16,h=36;
+    ctx.fillStyle='#b8c0dc';rr(x-8,by-h,14,h,6);ctx.fill();ctx.strokeStyle='#2b3262';ctx.lineWidth=2;ctx.stroke();
+    ctx.save();rr(x-6,by-h+2,10,h-4,4);ctx.clip();ctx.fillStyle='#2EC4B6';const f=Math.max(.04,m.o2);ctx.fillRect(x-6,by-2-(h-4)*f,10,(h-4)*f);ctx.restore();
+  }
+  hs('air2','Oxygen tanks',{t:'r',x:x0-24,y:by-40,w:40,h:44});
+}
+function drawGreenhouse(m){
+  const cx=585,by=DY+2,rx=58,ry=46;
+  ctx.beginPath();ctx.moveTo(cx-rx,by);ctx.ellipse(cx,by,rx,ry,0,Math.PI,2*Math.PI);ctx.closePath();
+  const dark=m.ghOff;const g=ctx.createLinearGradient(0,by-ry,0,by);g.addColorStop(0,dark?'#394056':'#a8f0a0');g.addColorStop(1,dark?'#232842':'#3d9a4d');ctx.fillStyle=g;ctx.fill();
+  ctx.save();ctx.clip();
+  const r=mulberry32(m.seed+17),pl=6+(m.design.g||1)*2;
+  for(let i=0;i<pl;i++){
+    const px=cx-rx+10+(i/(pl-1))*(2*rx-20),h=(8+r()*10+28*m.food*(1-Math.abs(px-cx)/rx*.5)),sw=REDUCE?0:Math.sin(st.t*1.6+i)*2.5;
+    ctx.strokeStyle='#2f7a3a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,by);ctx.quadraticCurveTo(px+sw,by-h*.5,px+sw*1.4,by-h);ctx.stroke();
+    ctx.fillStyle=dark?'#4d6a55':(i%3===0?'#ff6b6b':'#7BC950');ctx.beginPath();ctx.ellipse(px+sw*1.4,by-h,5,3.2,.5+i,0,7);ctx.fill();
+  }
+  if(!dark){glow(cx,by-20,60,'rgba(255,90,200,A)',.2)}
+  ctx.restore();
+  ctx.strokeStyle='#2b3262';ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(cx,by,rx,ry,0,Math.PI,2*Math.PI);ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;for(const f of [.35,.7]){ctx.beginPath();ctx.ellipse(cx,by,rx*f,ry,0,Math.PI,2*Math.PI);ctx.stroke()}
+  ctx.fillStyle='#5b6389';rr(cx-rx-4,by-2,2*rx+8,7,3);ctx.fill();
+  ctx.strokeStyle='#8b95c4';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(cx-rx-2,by-6);ctx.lineTo(DX+105,by-6);ctx.stroke();
+  hs('garden','Garden',{t:'r',x:cx-rx,y:by-ry,w:2*rx,h:ry+6});
+}
+function drawDish(m){
+  const bx=660,by=DY+2,e=earthPos(m),hy=by-52;
+  ctx.strokeStyle='#2b3262';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx,hy);ctx.stroke();
+  ctx.fillStyle='#5b6389';rr(bx-14,by-4,28,8,3);ctx.fill();
+  const ang=Math.atan2(e.y-hy,e.x-bx),big=14+(m.design.d||1)*5;
+  ctx.save();ctx.translate(bx,hy);ctx.rotate(ang);
+  ctx.fillStyle='#e9edf9';ctx.strokeStyle='#2b3262';ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(0,0,6,big,0,-Math.PI/2,Math.PI/2,true);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#2b3262';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(16,0);ctx.stroke();ctx.fillStyle='#FF5C93';ctx.beginPath();ctx.arc(17,0,2.5,0,7);ctx.fill();
+  ctx.restore();
+  hs('dish','Radio dish',{t:'r',x:bx-big-4,y:hy-big-4,w:big*2+10,h:big*2+60});
+}
+function drawBatteries(m){
+  const c=m.design.b||0;
+  for(let i=0;i<c;i++){
+    const x=330+i*28,y=388;
+    ctx.fillStyle='#4a5385';rr(x,y,24,18,4);ctx.fill();ctx.strokeStyle='#1d2350';ctx.lineWidth=2;ctx.stroke();
+    const f=Math.max(0,Math.min(1,m.pw*c-i));
+    ctx.fillStyle=f>.02?'#FFB627':'#2a2f5e';ctx.fillRect(x+4,y+5,Math.max(2,16*f),8);
+  }
+  if(c)hs('power','Batteries',{t:'r',x:326,y:384,w:c*28+4,h:26});
+}
+function drawNuke(m){
+  const c=m.design.n||0;
+  for(let i=0;i<c;i++){
+    const x=704+i*24,y=398;
+    ctx.fillStyle='#6a5a9e';rr(x,y-30,18,32,5);ctx.fill();ctx.strokeStyle='#2b2358';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='#cfc3ff';ctx.lineWidth=2;for(let j=0;j<4;j++){ctx.beginPath();ctx.moveTo(x-5,y-24+j*7);ctx.lineTo(x+23,y-24+j*7);ctx.stroke()}
+    const p=REDUCE?1:.6+.4*Math.sin(st.t*2+i);glow(x+9,y-14,24,'rgba(190,150,255,A)',.35*p);
+  }
+  if(c)hs('nuke','Nuclear battery',{t:'r',x:700,y:366,w:c*24+8,h:40});
+}
+function drawPanels(m){
+  const c=Math.min(14,m.live?panelCount(G):m.design.p),L=st.light,eff=st.eff,r=mulberry32(m.seed+41);
+  for(let i=0;i<c;i++){
+    const p=panelXY(i),x=p.x,y=p.y;
+    ctx.fillStyle='#51597f';ctx.fillRect(x+14,y+14,3,10);
+    const g=ctx.createLinearGradient(x,y,x+34,y+18);
+    const lit=.25+.75*L*(m.storm?.45:1);
+    g.addColorStop(0,`rgb(${30*lit+10|0},${70*lit+20|0},${190*lit+40|0})`);g.addColorStop(1,`rgb(${15*lit+8|0},${40*lit+16|0},${120*lit+30|0})`);
+    ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x+4,y);ctx.lineTo(x+32,y);ctx.lineTo(x+38,y+17);ctx.lineTo(x-4,y+17);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(180,210,255,.35)';ctx.lineWidth=1;
+    for(let q=1;q<4;q++){ctx.beginPath();ctx.moveTo(x+4+q*7+0,y);ctx.lineTo(x-4+q*10.5,y+17);ctx.stroke()}ctx.beginPath();ctx.moveTo(x+1,y+8.5);ctx.lineTo(x+35,y+8.5);ctx.stroke();
+    ctx.strokeStyle='#d7defa';ctx.lineWidth=1.6;ctx.stroke();
+    if(L>.5&&!REDUCE){const s=((st.t*.5+i*.13)%1.6)-.3;if(s>0&&s<1){ctx.fillStyle='rgba(255,255,255,'+(.35*(1-Math.abs(s-.5)*2)).toFixed(2)+')';ctx.beginPath();ctx.moveTo(x+4+s*28,y);ctx.lineTo(x+10+s*28,y);ctx.lineTo(x+6+s*28,y+17);ctx.lineTo(x-2+s*28,y+17);ctx.closePath();ctx.fill()}}
+    const dust=1-eff;
+    if(dust>.03){ctx.fillStyle='rgba(205,180,140,'+Math.min(.75,dust*1.5).toFixed(2)+')';ctx.beginPath();ctx.moveTo(x+4,y);ctx.lineTo(x+32,y);ctx.lineTo(x+38,y+17);ctx.lineTo(x-4,y+17);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(120,95,60,'+Math.min(.5,dust).toFixed(2)+')';for(let q=0;q<Math.round(dust*14);q++)ctx.fillRect(x+r()*34,y+r()*16,2,2)}
+  }
+  hs('panels','Solar panels',{t:'r',x:36,y:386,w:6*40+8+(c>7?16:0)+40,h:(c>7?54:30)});
+}
+function drawSampleRock(m){
+  const x=640,y=438,t=st.t;
+  ctx.fillStyle='#6a5f8a';ctx.beginPath();ctx.moveTo(x-9,y);ctx.lineTo(x-4,y-11);ctx.lineTo(x+4,y-13);ctx.lineTo(x+10,y-3);ctx.lineTo(x+8,y);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.4)';ctx.beginPath();ctx.moveTo(x-4,y-11);ctx.lineTo(x+4,y-13);ctx.lineTo(x,y-6);ctx.closePath();ctx.fill();
+  if(!REDUCE){const s=.5+.5*Math.sin(t*3);ctx.fillStyle='rgba(255,255,255,'+(.4+.5*s).toFixed(2)+')';ctx.fillRect(x+2,y-16-s*3,2,2);ctx.fillRect(x-8,y-9,2,2)}
+}
+
+/* ---- info text ---- */
+function infoFor(k){
+  const m=M(),g=m.live?G:null,mars=m.site==='mars';
+  if(k.startsWith('crew')){
+    const i=+k.slice(4),a=g&&g.crew[i];if(!a)return `${m.names[i]} is one of your astronauts. Pick a job for them!`;
+    const job=picks&&picks[i]&&TASKS[picks[i]];
+    return `<b>${esc(a.name)}</b> has ${Math.max(0,Math.round(a.health))}% health and has taken ${Math.round(a.dose)} mSv so far. ${job?`Today’s plan: ${job.name.toLowerCase()}.`:'No job picked yet.'}`;
+  }
+  switch(k){
+    case 'panels':return g?`☀️ <b>Solar panels.</b> ${panelCount(g)} panels, ${Math.round(g.eff*100)}% clean, make <b>${solarToday(g).toFixed(0)}</b> power today${m.sun?'':'. That’s zero because the base is in shadow'}. Dust blocks sunlight, so brush the panels!${mars?' Sunlight on Mars is less than half as strong as on Earth.':''}`:'☀️ <b>Solar panels</b> turn sunlight into power. Dust and shadows make less.';
+    case 'air':case 'air2':return g?`💨 <b>Life support.</b> Oxygen: ${Math.round(g.o2)} of 100. Your crew breathes about ${(3*g.crew.length*DIFFS[g.diff].use).toFixed(0)} a day, and the oxygen maker needs power to refill it.`:'💨 <b>Life support</b> makes air to breathe. It needs power.';
+    case 'garden':return g?`🌱 <b>Garden.</b> Food: ${Math.round(g.food)} of 100. Each time you tend it you grow ${7+2*g.design.g}. Real astronauts have grown lettuce and chili peppers on the space station.`:'🌱 <b>Garden</b> grows fresh food for the crew.';
+    case 'shield':return g?`🛡️ <b>Shielding.</b> Level ${g.shield} of 10 blocks about ${Math.round((1-shieldFactor(g))*100)}% of everyday radiation. Piling moon dirt (regolith) on walls is a real idea for protecting crews.`:'🛡️ <b>Shielding</b> is a wall of dirt that blocks radiation.';
+    case 'power':return g?`🔋 <b>Batteries.</b> ${Math.round(g.power)} of ${g.powerMax} stored. The base uses ${loadToday(g).toFixed(0)} power a day for heaters and life support, even when you do nothing.`:'🔋 <b>Batteries</b> save power for shadows and night.';
+    case 'nuke':return '☢️ <b>Nuclear battery.</b> It makes steady power from heat, day and night. Real rovers like Curiosity and Perseverance use one.';
+    case 'dish':return g?`📡 <b>Radio dish.</b> Each “send” moves ${SITES[g.site].tx+6*g.design.d} data to Earth. Messages take ${SITES[g.site].delay}. Watch the data packets: they move slowly when Earth is far!`:'📡 <b>Radio dish</b> sends your science home to Earth.';
+    case 'sun':return mars?'🌞 <b>The Sun.</b> From Mars it looks about two thirds as big as it does from Earth.':'🌞 <b>The Sun.</b> The Moon has no air, so the sky stays black even in daytime and you can see stars!';
+    case 'earth':return mars?'🌍 <b>Earth.</b> A tiny dot. It’s 3 to 22 light-minutes away, depending on where the planets are.':'🌍 <b>Earth.</b> About 384,400 km away. A radio message needs about 1.3 seconds to get here.';
+  }
+  return '';
+}
+function say(html){st.lastInfo=html;const el=document.getElementById(infoId);if(el)el.innerHTML=html}
+function inspect(k){st.inspected=k==='air2'?'air':k;st.inspT=4;say(infoFor(k));const h=st.hs.find(q=>q.k===k);if(!h&&k==='sun')return}
+
+/* ---- pointer ---- */
+function pt(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}}
+function hit(p){
+  for(let i=st.hs.length-1;i>=0;i--){const h=st.hs[i];
+    if(h.t==='c'){if(Math.hypot(p.x-h.x,p.y-h.y)<=h.r)return h}
+    else if(p.x>=h.x&&p.x<=h.x+h.w&&p.y>=h.y&&p.y<=h.y+h.h)return h}
+  return null}
+cv.addEventListener('pointermove',e=>{const p=pt(e);st.mouse=p;const h=hit(p),k=h?h.k:null;if(k!==st.hover&&k&&typeof SND!=='undefined')SND.tick();st.hover=k});
+cv.addEventListener('pointerleave',()=>{st.hover=null;st.mouse=null});
+cv.addEventListener('click',e=>{
+  const p=pt(e),h=hit(p);
+  if(h){inspect(h.k);if(typeof FX!=='undefined')FX.burst(e.clientX,e.clientY,'amber',16)}
+  else if(p.y>HZ+10){for(let i=0;i<14;i++)P({k:'dust',x:p.x,y:p.y,vx:(Math.random()-.5)*60,vy:-20-Math.random()*30,r:3+Math.random()*3,c:M().site==='mars'?'#d9a37a':'#cfcac3',life:1.2});say('👣 Dust! Moon and Mars dust is sticky and sharp, so it gets everywhere. Click parts of the base to learn what they do.')}
+});
+
+/* ---- loop ---- */
+let last=0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(!cv.isConnected){last=ts;return}
+  const dt=Math.min(.05,((ts-last)/1000)||.016);last=ts;
+  update(dt);draw();
+}
+requestAnimationFrame(frame);
+
+return{
+  mount(slot){
+    if(!slot)return;slot.innerHTML='';slot.appendChild(cv);
+    say(st.lastInfo||'Click parts of your base to learn what they do.');
+  },
+  inspect,say,
+  preview(v){st.pv=v},focus(k){st.focus=k},
+  pop(k,html){st.inspected=k;st.inspT=2.2;if(html)say(html)},
+  burst(){if(!REDUCE)for(let i=0;i<10;i++)P({k:'ring',x:st.sx,y:st.sy,vx:(Math.random()-.5)*60,vy:(Math.random()-.5)*60,r:3,c:'#FFB627',life:1})}
+};
+})();
+
+
+const CHIPS=[['panels','☀️ Panels'],['air','💨 Air'],['garden','🌱 Garden'],['shield','🛡️ Shield'],['power','🔋 Power'],['dish','📡 Dish']];
+function sceneBlock(){return `<div id="sceneslot"></div><div class="chips" role="group" aria-label="Look at a part of the base">${CHIPS.map(c=>`<button class="chip small-chip" data-a="inspect" data-v="${c[0]}">${c[1]}</button>`).join('')}</div><p class="sceneinfo" id="sceneinfo" aria-live="polite"></p>`}
+function mountScene(){SCENE.mount(document.getElementById('sceneslot'))}
+
+/* ---------- SETUP ---------- */
+function viewSetup(){
+  const sites=Object.values(SITES),diffs=Object.entries(DIFFS);
+  app.innerHTML=`
+  <div class="hero">
+    <div>
+      <h1>Moonbase Mission Control</h1>
+      <p class="lead">Keep your crew safe, fed, and busy with science for 30 days. Every choice costs something.</p>
+      <p class="small">For 1 to 4 players on one screen. Talk it over like a real mission team.</p>
+    </div>
+    <div>${sceneBlock()}</div>
+  </div>
+
+  <section class="card">
+    <h2>Who is on the crew?</h2>
+    <div class="row" style="margin-top:8px" role="group" aria-label="Number of players">
+      ${[1,2,3,4].map(n=>`<button class="chip" aria-pressed="${S.players===n}" data-a="players" data-v="${n}">${n} player${n>1?'s':''}</button>`).join('')}
+    </div>
+    <div class="names">
+      ${Array.from({length:S.players},(_,i)=>`<input data-name="${i}" maxlength="14" placeholder="Astronaut ${i+1} name" value="${esc(S.names[i])}" aria-label="Astronaut ${i+1} name">`).join('')}
+    </div>
+    ${S.players===1?'<p class="small">With one player, you command two astronauts.</p>':''}
+  </section>
+
+  <section class="block">
+    <h2>Where will your base be?</h2>
+    <div class="sites">
+      ${sites.map(x=>`<button class="site" aria-pressed="${S.site===x.id}" data-a="site" data-v="${x.id}">
+        <div class="ic">${x.icon}</div><h3>${x.name}</h3>
+        <p>${x.blurb}</p>
+        <span class="tag">${x.level}</span> <span class="tag">Earth messages: ${x.delay}</span>
+      </button>`).join('')}
+    </div>
+  </section>
+
+  <section class="block card">
+    <h2>How tough?</h2>
+    <div class="row" style="margin-top:8px" role="group" aria-label="Difficulty">
+      ${diffs.map(([k,d])=>`<button class="chip" aria-pressed="${S.diff===k}" data-a="diff" data-v="${k}">${d.name}</button>`).join('')}
+    </div>
+    <p class="small">Harder levels have more surprises, less room for radiation, and a bigger science goal.</p>
+  </section>
+
+  <div class="row" style="margin-top:20px">
+    <button class="btn big" data-a="toDesign">Design your base</button>
+  </div>
+
+  <section class="block card">
+    <h3>Play the same mission as a friend</h3>
+    <p class="small">Paste a mission code to get the same base, flares, and surprises. Then compare scores!</p>
+    <div class="codebox"><input id="codein" placeholder="Paste a mission code" value="${esc(S.code)}" aria-label="Mission code"><button class="btn ghost" data-a="loadCode">Load code</button></div>
+    <p class="small" id="codemsg">${esc(S.codeMsg)}</p>
+  </section>
+  ${leaderboardHTML()}
+  `;
+  mountScene();
+}
+
+function leaderboardHTML(){
+  lb=loadLB();
+  if(!lb.length)return '';
+  const top=lb.slice().sort((a,b)=>b.score-a.score).slice(0,5);
+  return `<section class="block card"><h3>Top missions on this device</h3><table><tr><th>Crew</th><th>Place</th><th>Stars</th><th>Score</th></tr>${top.map(r=>`<tr><td>${esc(r.team)}</td><td>${esc(r.site)}</td><td>${'⭐'.repeat(r.stars)||'–'}</td><td><b>${r.score}</b></td></tr>`).join('')}</table></section>`;
+}
+
+/* ---------- DESIGN ---------- */
+const PART_FOCUS={p:'panels',b:'power',n:'nuke',k:'shield',g:'garden',i:'air',d:'dish'};
+function powerCheck(){
+  const site=SITES[S.site],d=S.design,n=Math.max(2,S.players),panels=d.p+2*Math.max(0,n-2);
+  const gen=panels*9*site.sunF+d.n*7,load=site.baseLoad+site.perCrew*n,spare=gen-load,cap=60+30*d.b;
+  const dark=d.n*7-(load+site.darkLoad);
+  let night='';
+  if(S.site!=='mars')night=dark>=0?'In shadow or night you still break even. 👍':`In shadow you lose <b>${(-dark).toFixed(0)}</b> power a day. A full battery (${cap}) lasts about <b>${Math.floor(cap*.8/-dark)}</b> days.`;
+  else night='Dust storms can cut your sunlight to a third, so keep a battery in reserve.';
+  const blocks=Math.round((1-Math.max(.3,1-.07*d.k))*100);
+  return `<div class="card" style="margin-top:12px"><h3>⚡ Power check</h3><p>On a good day your panels make <b>${gen.toFixed(0)}</b> and the base uses <b>${load.toFixed(0)}</b>, so you have <b class="${spare<0?'err':''}">${spare.toFixed(0)}</b> spare for jobs. Each job uses about 3 to 6.</p><p>${night}</p><p class="small">🛡️ Your starting walls block about ${blocks}% of everyday radiation.</p></div>`;
+}
+const SITE_TIPS={
+  pole:'Shadows come every few days. What keeps the lights on when the Sun is gone?',
+  equator:'The night here lasts about 14 days. Plan your power before you launch.',
+  mars:'The Sun is weak here and dust storms are coming. Think about where your power comes from.'
+};
+function viewDesign(){
+  const cost=designCost(S.design),over=cost>MASS,left=MASS-cost,site=SITES[S.site];
+  app.innerHTML=`
+  <div class="top"><button class="btn ghost" data-a="back" data-tip="Go back and change your crew or site">Back</button><h2>Pack your lander: ${site.icon} ${site.name}</h2></div>
+  <div class="card" style="padding:10px;margin-bottom:12px">${sceneBlock()}</div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><b>Launch weight: ${cost} of ${MASS}</b><span class="${over?'err':'small'}">${over?'Too heavy! Remove something.':left+' left'}</span></div>
+    <div class="budget ${over?'over':''}" role="progressbar" aria-valuemin="0" aria-valuemax="${MASS}" aria-valuenow="${cost}"><i style="width:${Math.min(100,cost/MASS*100)}%"></i></div>
+    <p class="small" style="margin-top:8px">💡 ${SITE_TIPS[S.site]}</p>
+  </div>
+  <div class="parts">
+  ${PARTS.map(p=>`<div class="card part" data-focus="${PART_FOCUS[p.k]}">
+    <div class="ic" aria-hidden="true">${p.icon}</div>
+    <div><h3>${p.name} <small>(weighs ${p.cost} each)</small></h3><small>${p.why}</small></div>
+    <div class="step"><button data-tip="Take one off" data-a="part" data-k="${p.k}" data-v="-1" aria-label="Fewer ${p.name}" ${S.design[p.k]<=0?'disabled':''}>−</button><b aria-live="polite">${S.design[p.k]}</b><button data-tip="Add one (weighs ${p.cost})" data-a="part" data-k="${p.k}" data-v="1" aria-label="More ${p.name}" ${S.design[p.k]>=p.max||left<p.cost?'disabled':''}>+</button></div>
+  </div>`).join('')}
+  </div>
+  ${powerCheck()}
+  <div class="card" style="margin-top:12px"><h3>Your goal</h3>
+    <p>Send <b>${DIFFS[S.diff].goal*Math.max(2,S.players)} data</b> home to Earth in 30 ${site.unit}s while keeping everyone healthy. Radiation budget: <b>${DIFFS[S.diff].budget} mSv</b> each.</p>
+    <p class="small">Real space weather: flares in this game are replayed from NASA records. We try NASA’s live DONKI service first.</p>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <button class="btn big" data-a="launch" data-tip="Blast off with this base!" ${over||S.loading?'disabled':''}>${S.loading?'Checking space weather…':'Launch!'}</button>
+  </div>`;
+  mountScene();
+}
+
+/* ---------- GAME ---------- */
+const TIPS={o2:'Uses power to make 10 oxygen. Everyone breathes every day!',farm:'Grow food. The grow lights need power.',shield:'Work outside and pile dirt on the walls. It blocks radiation for the rest of the mission.',clean:'Brush dust off the panels. Free, but someone has to go outside.',lab:'Do science to make data. Data only counts once you send it home.',eva:'Explore for lots of data. Costs oxygen, and you get 3 times the radiation outside.',tx:'Send data to Earth. Only data that reaches Earth counts toward your goal.',rest:'Heals 15 health. Does nothing for the base, but a tired crew gets sick.'};
+function project(){
+  const c=JSON.parse(JSON.stringify(G));c.flareHit=false;
+  const p=picks.map(k=>k||'rest');
+  playDay(c,p,true);
+  return c;
+}
+function meter(label,icon,val,max,color,proj,focus){
+  const w=v=>Math.max(0,Math.min(100,v/max*100)).toFixed(1);
+  return `<div class="meter" data-focus="${focus||''}" data-tip="Hover to see where this lives in your base"><div class="ml"><span>${icon} ${label}</span><span>${Math.round(val)} / ${max}${proj!=null&&Math.round(proj)!==Math.round(val)?` <small class="${proj<val?'dn':'up'}">${proj<val?'▼':'▲'}${Math.abs(Math.round(proj-val))} tonight</small>`:''}</span></div>
+  <div class="track"><div class="fill" style="width:${w(val)}%;background:var(${color})"></div>${proj!=null?`<div class="tick" style="left:calc(${w(proj)}% - 2px)" title="Tonight"></div>`:''}</div></div>`;
+}
+function viewGame(){
+  const s=G,site=SITES[s.site],D=DIFFS[s.diff],n=s.crew.length;
+  const pr=project();
+  const gen=solarToday(s)+nukeToday(s),load=loadToday(s);
+  const goal=D.goal*n,allPicked=picks.every(Boolean);
+  const sunTxt=s.today.sun?(s.site==='mars'?'🌤️ Weak sunlight':'☀️ Sunny'):'🌑 In shadow';
+  app.innerHTML=`
+  <div class="top">
+    <div class="daybadge">${site.unit==='sol'?'Sol':'Day'} ${s.day} <small>of ${MISSION_DAYS}</small></div>
+    <div class="row"><span class="pill">${sunTxt}</span><span class="pill">📡 Earth is ${esc(site.delay)}</span><span class="pill">📤 Sent ${s.sent} / ${goal}</span></div>
+  </div>
+  <div class="game">
+    <div>
+      <div class="card" style="padding:10px">${sceneBlock()}
+        <div class="meters">
+          ${meter('Power','⚡',s.power,s.powerMax,'--power',pr.power,'power')}
+          ${meter('Oxygen','💨',s.o2,100,'--o2',pr.o2,'air')}
+          ${meter('Food','🥦',s.food,100,'--food',pr.food,'garden')}
+          ${meter('Data on base','💾',s.data,DATA_CAP,'--data',pr.data,'dish')}
+        </div>
+        <p class="small" style="margin-top:8px">The black tick shows where each bar will be tonight with your current plan.</p>
+      </div>
+      <div class="card forecast" style="margin-top:12px">
+        <b>Power today:</b> panels and batteries make <b>+${gen.toFixed(0)}</b>, the base uses <b>−${load.toFixed(0)}</b>${s.today.sun?'':' (heaters work harder in the dark)'}.<br>
+        <b>🛡️ Shielding:</b> level ${s.shield} of 10 · <b>Panels:</b> ${Math.round(s.eff*100)}% clean${s.mods.storm>0?' · 🌪️ storm '+s.mods.storm+' more':''}${s.mods.ghOff>0?' · garden lights off':''}${s.sheltered?' · 🏠 sheltering today':''}
+      </div>
+      <div class="card" style="margin-top:12px"><h3>What happened</h3>
+        <ul class="log" aria-live="polite">${s.log.length?s.log.slice(0,10).map(l=>`<li>${esc(l)}</li>`).join(''):'<li>Your mission just began. Pick jobs for your crew.</li>'}</ul>
+      </div>
+    </div>
+    <div>
+      <div class="crew">
+      ${s.crew.map((a,i)=>`<div class="card astro ${S.act===i?'active':''}" data-a="act" data-i="${i}" data-focus="crew${i}">
+        <h3><span>🧑‍🚀 ${esc(a.name)}</span><small>${S.act===i?'Press 1–8 to pick a job':'Click to choose a job with the keyboard'}</small></h3>
+        <div class="mini"><span>❤️</span><div class="track"><div class="fill" style="width:${Math.max(0,a.health)}%;background:var(--food)"></div></div><span>${Math.max(0,Math.round(a.health))}</span></div>
+        <div class="mini"><span>☢️</span><div class="track"><div class="fill" style="width:${Math.min(100,a.dose/D.budget*100)}%;background:var(--rad)"></div></div><span>${Math.round(a.dose)} / ${D.budget} mSv</span></div>
+        <div class="tasks" role="group" aria-label="Job for ${esc(a.name)}">
+          ${TASK_ORDER.map(k=>{const T=TASKS[k],ok=taskAvailable(s,k);return `<button class="task" data-a="pick" data-i="${i}" data-k="${k}" data-tip="${esc(TIPS[k])}" aria-pressed="${picks[i]===k}" ${ok?'':'disabled'}>${S.act===i?`<kbd>${TASK_ORDER.indexOf(k)+1}</kbd>`:''}<b>${T.icon} ${T.name==='Moonwalk'&&s.site==='mars'?'Marswalk':T.name}</b><small>${ok?T.txt(s):'Not available today'}</small></button>`}).join('')}
+        </div>
+      </div>`).join('')}
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn big ${allPicked?'pulse':''}" data-a="startDay" ${allPicked?'':'disabled'}>${allPicked?`Start ${site.unit} ${s.day}`:'Pick a job for everyone'}</button>
+        <button class="btn ghost" data-a="quit" data-tip="Leave this mission">Quit</button>
+      </div>
+    </div>
+  </div>
+  ${modal?modalHTML():''}`;
+  mountScene();
+  if(modal){const f=app.querySelector(modal.result?'[data-a=cont]':'.opt');if(f)f.focus({preventScroll:true})}
+}
+
+/* ---------- EVENT MODAL ---------- */
+function flareEvent(s){
+  const f=s.today.flare,D=DIFFS[s.diff];
+  return{icon:'☀️',title:`Space weather alert: ${f.cls} flare`,
+    text:`The Sun just fired a flare. It’s replayed from a real one on ${f.date}. About ${Math.round(D.hit*10)} out of 10 storms like this send harmful particles toward us. Hide, or keep working?`,
+    options:[
+      {label:'Go to the storm shelter',desc:'Uses 5 power. No outside jobs today. Far less radiation.',fx:s=>{s.sheltered=true;s.stats.shelters++;return 'Everyone is inside the storm shelter, behind the thickest walls.'}},
+      {label:'Keep working',desc:'All jobs allowed. If particles arrive, anyone outside gets a big dose.',fx:s=>'The crew keeps working and watches the sky.'}],
+    best:()=>0,
+    lesson:'Space weather forecasters at NASA and NOAA give warnings so astronauts can shelter. Sometimes the storm misses, but you can’t know until it’s too late.'};
+}
+function openModalIfNeeded(){
+  if(!G||G.ended||modal||handled===G.day)return;
+  if(G.today.flare){modal={ev:flareEvent(G),asked:false,advice:'',result:null,chosen:null};SND.alert()}
+  else if(G.today.event){modal={ev:G.today.event,asked:false,advice:'',result:null,chosen:null};SND.alert()}
+  else handled=G.day;
+}
+function modalHTML(){
+  const m=modal,ev=m.ev,site=SITES[G.site];
+  let body;
+  if(!m.result){
+    body=`<div class="big" aria-hidden="true">${ev.icon}</div><h2 id="mt">${esc(ev.title)}</h2><p>${esc(ev.text)}</p>
+    ${ev.options.map((o,i)=>`<button class="opt" data-a="opt" data-i="${i}"><b>${esc(o.label)}</b><br><small>${esc(o.desc)}</small></button>`).join('')}
+    ${m.advice?`<div class="advice">${m.advice}</div>`:`<button class="btn ghost" style="margin-top:12px" data-a="ask">📡 Ask Mission Control (uses 2 power)</button>`}`;
+  }else{
+    body=`<div class="big" aria-hidden="true">${ev.icon}</div><h2 id="mt">${esc(ev.title)}</h2><p><b>${esc(m.result)}</b></p>
+    <div class="lesson">💡 ${esc(ev.lesson)}</div>
+    <div class="row" style="margin-top:14px"><button class="btn big" data-a="cont">Continue</button></div>`;
+  }
+  return `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">${body}</div></div>`;
+}
+function doAsk(){
+  const m=modal,ev=m.ev,site=SITES[G.site];
+  const r=askEarth(G,ev),opt=ev.options[r.best];
+  m.asked=true;
+  if(r.delayed)m.advice=`📡 Message sent! Earth is <b>${esc(site.delay)}</b> away, so the answer won’t arrive in time. Your crew has to decide on its own.`;
+  else m.advice=`📡 Mission Control answers in a couple of seconds: <b>“I’d pick: ${esc(opt.label)}.”</b>`;
+}
+function doOpt(i){
+  const m=modal,ev=m.ev;m.chosen=i;
+  m.result=ev.options[i].fx(G);
+  if(!ev.id)G.stats.flareChoice=i;else G.stats.events++;
+  if(m.asked&&SITES[G.site].id==='mars'){
+    const best=ev.best(G),same=best===i;
+    G.replies.push({day:G.day+1,text:`Earth’s answer finally arrived: “I’d pick: ${ev.options[best].label}.” ${same?'That’s what you chose. Nice!':'You chose differently, on your own.'}`});
+  }
+}
+
+/* ---------- REPORT ---------- */
+function chartSVG(h){
+  if(!h.length)return '';
+  const W=640,H=220,pad=30,max=120;
+  const x=i=>pad+(i/(Math.max(1,MISSION_DAYS-1)))*(W-pad*2),y=v=>H-pad-(Math.max(0,Math.min(max,v))/max)*(H-pad*2);
+  const line=(key,col)=>`<polyline fill="none" stroke="var(${col})" stroke-width="3" stroke-linejoin="round" points="${h.map((r,i)=>x(i)+','+y(r[key]).toFixed(1)).join(' ')}"/>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Chart of power, oxygen, food and health over the mission">
+   <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--line)" stroke-width="2"/>
+   <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}" stroke="var(--line)" stroke-width="2"/>
+   ${line('power','--power')}${line('o2','--o2')}${line('food','--food')}${line('health','--rad')}
+   <text x="${pad}" y="${H-8}" font-size="12" fill="var(--muted)">Day 1</text><text x="${W-pad-34}" y="${H-8}" font-size="12" fill="var(--muted)">Day ${MISSION_DAYS}</text></svg>
+   <div class="row small"><span style="color:var(--power)">■ Power</span><span style="color:var(--o2)">■ Oxygen</span><span style="color:var(--food)">■ Food</span><span style="color:var(--rad)">■ Crew health</span></div>`;
+}
+function analysis(s,sum){
+  const out=[],st=s.stats,goal=sum.goal;
+  if(s.ended.reason==='early')out.push(`<b>Why the mission ended early:</b> ${esc(s.ended.who)} needed to come home. ${st.o2Short?'Oxygen ran out at least once. ':''}${st.foodShort?'Food ran out at least once. ':''}${st.brownouts?'The base lost power '+st.brownouts+' time(s), so the heaters stopped. ':''}${sum.maxDose>sum.budget?'The radiation budget was passed. ':''}`);
+  if(s.sent>=goal)out.push(`<b>Science:</b> you sent ${s.sent} data home. The goal was ${goal}. Great teamwork!`);
+  else out.push(`<b>Science:</b> you sent ${s.sent} of ${goal} data. ${s.data>0?`${s.data} more data was still stuck on the base computer. It only counts once it reaches Earth!`:'Try a few more experiments and “Send data home” jobs.'}`);
+  if(st.storageFull)out.push(`<b>Storage:</b> the computer filled up ${st.storageFull} time(s) and lost data. Sending data home more often would help.`);
+  out.push(`<b>Radiation:</b> your most exposed astronaut took ${sum.maxDose} of ${sum.budget} mSv (game scale). ${st.shelters?`You sheltered ${st.shelters} time(s), which blocked about ${Math.round(st.flareDoseDodged)} mSv of flare radiation across the crew.`:'You never used the storm shelter.'}${st.flareDoseTaken>0?` Flares delivered ${Math.round(st.flareDoseTaken)} mSv to the crew.`:''}`);
+  out.push(`<b>Power:</b> ${st.brownouts?`there ${st.brownouts===1?'was 1 brownout':'were '+st.brownouts+' brownouts'}. Every job that needs power competes with the heaters and life support.`:'no brownouts. Your power budget held up.'} ${st.fizzles?`${st.fizzles} job(s) failed because power or air ran short.`:''}`);
+  out.push(`<b>Talking to Earth:</b> you asked Mission Control ${st.askedEarth} time(s). ${s.site==='mars'?'On Mars the answer takes minutes, so astronauts must be able to decide alone.':'On the Moon the answer is almost instant, so help is easy to get.'}`);
+  const low=[['power',s.power/s.powerMax],['oxygen',s.o2/100],['food',s.food/100]].sort((a,b)=>a[1]-b[1])[0][0];
+  out.push(`<b>Try next time:</b> your tightest resource was <b>${low}</b>. Change one thing in the design, play again with the same code, and see what moves.`);
+  return out;
+}
+function viewReport(){
+  const s=G,sum=summarize(s),site=SITES[s.site],done=s.ended.reason==='complete';
+  if(!saved){saved=true;lb=loadLB();lb.push({team:s.crew.map(a=>a.name).join(' & '),site:site.name,stars:sum.stars,score:sum.score});saveLB(lb.sort((a,b)=>b.score-a.score).slice(0,20))}
+  const code=makeCode();
+  if(!S._played){S._played=1;sum.stars>0?SND.win():SND.sad()}
+  app.innerHTML=`
+  <div class="card" style="padding:10px">${sceneBlock()}</div>
+  <div class="card" style="text-align:center;margin-top:12px">
+    <div class="stars" aria-label="${sum.stars} out of 3 stars">${'⭐'.repeat(sum.stars)}${'☆'.repeat(3-sum.stars)}</div>
+    <h1 style="font-size:2.2rem">${done?'Mission complete!':'Emergency return'}</h1>
+    <p>${done?`Your crew lived on ${site.name} for 30 ${site.unit}s.`:`The crew came home after ${sum.days} ${site.unit}s.`} Score: <b>${sum.score}</b></p>
+    <p class="small">⭐ Survive all 30 ${site.unit}s · ⭐ Send ${sum.goal} data home · ⭐ Crew healthy and under ${sum.budget} mSv</p>
+  </div>
+  <div class="stats" style="margin-top:12px">
+    <div class="stat">Data sent<b>${s.sent}</b></div><div class="stat">Crew health<b>${sum.avgH}%</b></div>
+    <div class="stat">Top radiation dose<b>${sum.maxDose} mSv</b></div><div class="stat">Moonwalks<b>${s.stats.evas}</b></div>
+  </div>
+  <section class="card" style="margin-top:12px"><h2>Your mission, day by day</h2>${chartSVG(s.history)}</section>
+  <section class="card" style="margin-top:12px"><h2>Why it went this way</h2><ul class="why">${analysis(s,sum).map(l=>`<li>${l}</li>`).join('')}</ul></section>
+  <section class="card" style="margin-top:12px"><h2>Real-world check</h2>
+    <p>Flares in this game came from the <b>${S.source==='live'?'live NASA DONKI service':S.source==='shared'?'shared mission code (NASA flare records)':'archived NASA flare record'}</b>: ${s.flares.map(f=>esc(f.cls)+' on '+esc(f.date)).join(', ')}.</p>
+    <p class="small">Game scale: radiation per day is about 1.4 mSv on the Moon and 0.67 mSv on Mars. These are real surface measurements from lunar and Mars missions. Flare doses, power, and food numbers are simplified for play. NASA’s real career limit is 600 mSv, but we use a smaller budget so you can feel it in 30 days.</p>
+    <p class="small">Learn more: <a href="https://api.nasa.gov" target="_blank" rel="noopener">NASA Open APIs (DONKI)</a> · <a href="https://osdr.nasa.gov" target="_blank" rel="noopener">NASA Open Science Data Repository</a></p>
+  </section>
+  <section class="card" style="margin-top:12px"><h3>Share this base</h3>
+    <p class="small">Send this code to a friend. They get the same base and the same surprises. Who scores higher?</p>
+    <div class="codebox"><input readonly id="codeout" value="${esc(code)}" aria-label="Mission code" onfocus="this.select()"><button class="btn ghost" data-a="copy">Copy</button></div>
+  </section>
+  <div class="row" style="margin-top:16px"><button class="btn big" data-a="again">Fly again with the same code</button><button class="btn ghost" data-a="home">New mission</button></div>
+  ${leaderboardHTML()}`;
+  mountScene();
+}
+
+/* ---------- render + events ---------- */
+function render(){
+  TIP.hide();SCENE.preview(null);SCENE.focus(null);
+  if(S.view==='setup')viewSetup();
+  else if(S.view==='design')viewDesign();
+  else if(S.view==='game'){openModalIfNeeded();viewGame()}
+  else if(S.view==='report')viewReport();
+  window.scrollTo(0,0);
+}
+function rerenderKeepScroll(){TIP.hide();SCENE.preview(null);const y=window.scrollY;if(S.view==='game'){openModalIfNeeded();viewGame()}else render();window.scrollTo(0,y)}
+
+function doPick(i,k){
+  picks[i]=k;SND.pick(TASK_ORDER.indexOf(k));
+  const nx=picks.findIndex(p=>!p);S.act=nx>=0?nx:i;
+  rerenderKeepScroll();
+}
+function startGame(){
+  S._played=0;S.act=0;
+  const names=[];for(let i=0;i<S.players;i++)names.push((S.names[i]||'').trim()||['Nova','Orion','Luna','Comet'][i]);
+  G=newGame({site:S.site,diff:S.diff,names,design:S.design,seed:S.seed,flares:S.flares});
+  picks=G.crew.map(()=>null);handled=0;modal=null;saved=false;S.view='game';
+render();
+}
+
+app.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const a=b.dataset.a,v=b.dataset.v;
+  switch(a){
+    case 'players':S.players=+v;render();break;
+    case 'site':S.site=v;S.design=defaultDesign();render();break;
+    case 'diff':S.diff=v;render();break;
+    case 'toDesign':S.view='design';S.seed=Math.floor(Math.random()*1e9);S.flares=null;render();break;
+    case 'back':S.view='setup';render();break;
+    case 'part':{const k=b.dataset.k;S.design[k]=Math.max(0,S.design[k]+(+v));rerenderKeepScroll();const P_=PARTS.find(p=>p.k===k);SCENE.pop(PART_FOCUS[k],`${P_.icon} <b>${P_.name}: ${S.design[k]}</b>. ${P_.why}`);break}
+    case 'launch':{
+      if(!S.flares){S.loading=true;viewDesign();const r=await loadFlares();S.flares=r.flares;S.source=r.source;S.loading=false}
+      startGame();break}
+    case 'loadCode':{
+      const val=document.getElementById('codein').value;S.code=val;
+      try{readCode(val);S.codeMsg='Code loaded! Your base and surprises are set.';S.view='design';render()}
+      catch(err){S.codeMsg='That code didn’t work. Check that you copied all of it.';render()}
+      break}
+    case 'act':S.act=+b.dataset.i;rerenderKeepScroll();break;
+    case 'pick':doPick(+b.dataset.i,b.dataset.k);break;
+    case 'startDay':{SND.start();SCENE.burst();playDay(G,picks);picks=G.crew.map(()=>null);if(G.ended){S.view='report';render()}else rerenderKeepScroll();break}
+    case 'quit':if(confirm('Leave this mission?')){S.view='setup';render()}break;
+    case 'ask':doAsk();rerenderKeepScroll();break;
+    case 'opt':doOpt(+b.dataset.i);rerenderKeepScroll();break;
+    case 'cont':handled=G.day;modal=null;rerenderKeepScroll();break;
+    case 'copy':{const el=document.getElementById('codeout');el.select();try{await navigator.clipboard.writeText(el.value);b.textContent='Copied!'}catch(err){b.textContent='Press Ctrl+C'}break}
+    case 'inspect':SCENE.inspect(v);break;
+    case 'again':startGame();break;
+    case 'home':S.view='setup';render();break;
+  }
+});
+app.addEventListener('input',e=>{
+  if(e.target.dataset.name!==undefined)S.names[+e.target.dataset.name]=e.target.value;
+  if(e.target.id==='codein')S.code=e.target.value;
+});
+
+/* ---------- interaction layer: sparks, sound, tooltips, hover previews, keyboard ---------- */
+const REDUCE_UI=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const FX=(function(){
+  const c=document.createElement('canvas');c.setAttribute('aria-hidden','true');
+  c.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:60';
+  document.body.appendChild(c);const x=c.getContext&&c.getContext('2d');
+  const DPR=Math.min(2,window.devicePixelRatio||1);let P=[],run=false,t=0,seed=1,last=0;
+  function size(){c.width=innerWidth*DPR;c.height=innerHeight*DPR;if(x)x.setTransform(DPR,0,0,DPR,0,0)}
+  size();addEventListener('resize',size);
+  const pal={amber:['#FFB627','#FFD27A','#fff3c4'],teal:['#2EC4B6','#8ff0e6','#ffffff'],pink:['#FF5C93','#FF9CBC','#ffffff'],blue:['#6CB8FF','#b6dcff','#ffffff'],green:['#7BC950','#b8ec9a','#ffffff']};
+  function loop(ts){
+    const dt=Math.min(.05,(ts-last)/1000||.016);last=ts;t+=dt;
+    x.clearRect(0,0,innerWidth,innerHeight);
+    for(const p of P){
+      const a=Math.sin(p.x*.02+t*3)+Math.cos(p.y*.024-t*2);
+      p.vx+=Math.cos(a*1.7)*140*dt;p.vy+=Math.sin(a*1.7)*140*dt-30*dt;p.vx*=.955;p.vy*=.955;
+      p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;
+      x.globalAlpha=Math.max(0,p.life/p.max);x.fillStyle=p.c;
+      if(p.sh){x.save();x.translate(p.x,p.y);x.rotate(t*6+p.r);x.fillRect(-p.r,-p.r,p.r*2,p.r*2);x.restore()}
+      else{x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill()}
+    }
+    x.globalAlpha=1;P=P.filter(p=>p.life>0);
+    if(P.length)requestAnimationFrame(loop);else{run=false;x.clearRect(0,0,innerWidth,innerHeight)}
+  }
+  return{burst(px,py,col,n){
+    if(REDUCE_UI||!x)return;
+    const R=mulberry32((seed++)*977),cols=pal[col]||pal.amber;
+    for(let i=0;i<(n||14);i++){const a=R()*6.283,s=60+R()*150,l=.45+R()*.55;P.push({x:px,y:py,vx:Math.cos(a)*s,vy:Math.sin(a)*s-30,life:l,max:l,r:1.6+R()*2.4,c:cols[i%3],sh:R()<.4})}
+    if(P.length>400)P.splice(0,P.length-400);
+    if(!run){run=true;last=performance.now();requestAnimationFrame(loop)}
+  }};
+})();
+
+const SND=(function(){
+  let ac=null,on=false;try{on=localStorage.getItem('mmc_snd')==='1'}catch(e){}
+  function A(){if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{ac=new C()}catch(e){return null}}if(ac.state==='suspended')ac.resume();return ac}
+  function tone(f,d,type,v,f2,delay){
+    if(!on)return;const a=A();if(!a)return;
+    const t0=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();
+    o.type=type||'sine';o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);
+    g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(v||.05,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    o.connect(g);g.connect(a.destination);o.start(t0);o.stop(t0+d+.03);
+  }
+  return{
+    get on(){return on},
+    set(v){on=v;try{localStorage.setItem('mmc_snd',v?'1':'0')}catch(e){}},
+    tick(){tone(1100,.025,'sine',.012)},
+    click(){tone(480,.09,'triangle',.05,720)},
+    pick(i){tone(330+i*45,.13,'triangle',.06,440+i*45)},
+    start(){tone(180,.5,'sawtooth',.035,900)},
+    alert(){tone(660,.14,'square',.025);tone(440,.2,'square',.025,null,.15)},
+    win(){[523,659,784,1047].forEach((f,i)=>tone(f,.25,'triangle',.06,null,i*.12))},
+    sad(){tone(300,.45,'sine',.05,150)}
+  };
+})();
+
+const TIP=(function(){
+  const el=document.createElement('div');el.id='tip';el.setAttribute('role','tooltip');document.body.appendChild(el);let cur=null;
+  function hide(){cur=null;el.classList.remove('on')}
+  function show(t){
+    const txt=t.getAttribute('data-tip');if(!txt){hide();return}
+    cur=t;el.textContent=txt;el.classList.add('on');
+    const r=t.getBoundingClientRect(),w=el.offsetWidth,h=el.offsetHeight;
+    let left=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2)),top=r.top-h-10;if(top<8)top=r.bottom+10;
+    el.style.left=left+'px';el.style.top=top+'px';
+  }
+  return{hide,show,get cur(){return cur}};
+})();
+
+(function(){
+  /* sound button */
+  const b=document.createElement('button');b.className='sndbtn';b.id='snd';
+  const paint=()=>{b.textContent=SND.on?'🔊':'🔇';b.setAttribute('aria-pressed',SND.on);b.setAttribute('aria-label',SND.on?'Sound effects on':'Sound effects off');b.setAttribute('data-tip',SND.on?'Sound is on. Click to mute':'Turn on sound effects')};
+  paint();document.body.appendChild(b);
+  b.addEventListener('click',()=>{SND.set(!SND.on);paint();SND.click();TIP.hide()});
+  /* delegate on document so the button gets tips and sparks too */
+  const colFor=el=>el.closest('.task')?'amber':el.closest('.chip')?'teal':el.closest('.opt')?'pink':el.closest('.site')?'blue':el.closest('.step')?'green':'amber';
+  let lastEl=null;
+  document.addEventListener('pointerdown',e=>{
+    const t=e.target.closest('button,.scenecv');if(!t||t.disabled)return;
+    const col=t.classList&&t.classList.contains('scenecv')?'amber':colFor(t);
+    FX.burst(e.clientX,e.clientY,col,t.classList.contains('task')?22:12);
+    if(!t.classList.contains('scenecv'))SND.click();
+    try{if(!REDUCE_UI&&navigator.vibrate)navigator.vibrate(8)}catch(err){}
+  });
+  document.addEventListener('mouseover',e=>{
+    const t=e.target.closest('button,.opt,.site');
+    if(t&&t!==lastEl&&!t.disabled){SND.tick();if(!t.classList.contains('scenecv'))FX.burst(e.clientX,e.clientY,colFor(t),3)}
+    lastEl=t||null;
+    const tp=e.target.closest('[data-tip]');if(tp!==TIP.cur){tp?TIP.show(tp):TIP.hide()}
+    const tk=e.target.closest('.task[data-a=pick]');
+    SCENE.preview(tk&&!tk.disabled?{i:+tk.dataset.i,k:tk.dataset.k}:null);
+    const f=e.target.closest('[data-focus]');SCENE.focus(f&&f.dataset.focus?f.dataset.focus:null);
+  });
+  document.addEventListener('mouseleave',()=>{TIP.hide();SCENE.preview(null);SCENE.focus(null)});
+  document.addEventListener('focusin',e=>{
+    const tp=e.target.closest('[data-tip]');tp?TIP.show(tp):TIP.hide();
+    const tk=e.target.closest('.task[data-a=pick]');SCENE.preview(tk&&!tk.disabled?{i:+tk.dataset.i,k:tk.dataset.k}:null);
+    const f=e.target.closest('[data-focus]');SCENE.focus(f&&f.dataset.focus?f.dataset.focus:null);
+  });
+  document.addEventListener('focusout',()=>{TIP.hide();SCENE.preview(null);SCENE.focus(null)});
+  addEventListener('scroll',()=>TIP.hide(),{passive:true});
+  /* hover glow + card tilt follow the pointer */
+  document.addEventListener('mousemove',e=>{
+    const t=e.target.closest('.btn,.task,.chip,.opt,.site,.sndbtn');if(!t)return;
+    const r=t.getBoundingClientRect();
+    t.style.setProperty('--mx',(e.clientX-r.left)+'px');t.style.setProperty('--my',(e.clientY-r.top)+'px');
+    if(t.classList.contains('site')&&!REDUCE_UI){t.style.setProperty('--tx',(((e.clientX-r.left)/r.width-.5)*8).toFixed(1)+'deg');t.style.setProperty('--ty',(-((e.clientY-r.top)/r.height-.5)*8).toFixed(1)+'deg')}
+  });
+  /* keyboard shortcuts */
+  document.addEventListener('keydown',e=>{
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    const tg=(e.target&&e.target.closest)?e.target:document.body;
+    const tag=(tg.tagName||'').toLowerCase();if(tag==='input'||tag==='textarea')return;
+    const onBtn=!!tg.closest('button');
+    if(S.view!=='game'||!G||G.ended)return;
+    if(modal){
+      if(!modal.result){
+        if(/^[1-9]$/.test(e.key)&&modal.ev.options[+e.key-1]){doOpt(+e.key-1);SND.click();rerenderKeepScroll();e.preventDefault()}
+        else if((e.key==='a'||e.key==='A')&&!modal.asked){doAsk();rerenderKeepScroll()}
+      }else if(e.key==='Enter'&&!onBtn){handled=G.day;modal=null;rerenderKeepScroll()}
+      return;
+    }
+    if(/^[1-8]$/.test(e.key)){const k=TASK_ORDER[+e.key-1];if(taskAvailable(G,k)){doPick(S.act||0,k);e.preventDefault()}}
+    else if(e.key==='ArrowRight'||e.key==='ArrowDown'){if(!onBtn||tg.closest('.astro')){S.act=((S.act||0)+1)%G.crew.length;rerenderKeepScroll()}}
+    else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){if(!onBtn||tg.closest('.astro')){S.act=((S.act||0)-1+G.crew.length)%G.crew.length;rerenderKeepScroll()}}
+    else if(e.key==='Enter'&&!onBtn&&picks.every(Boolean)){SND.start();SCENE.burst();playDay(G,picks);picks=G.crew.map(()=>null);S.act=0;if(G.ended){S.view='report';render()}else rerenderKeepScroll()}
+  });
+})();
+
+render();
+
+</script>
+</body>
+</html>
